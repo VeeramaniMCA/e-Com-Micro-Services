@@ -5,7 +5,7 @@ Microservices-based e-commerce application using:
  🏗️ Project Structure
 
 ```
-📦 ecommerce-microservices-monitoring
+📦 ecommerce-microservices
 ├── 📂 kubernetes
 │   ├── prometheus-deployment.yaml
 │   ├── grafana-deployment.yaml
