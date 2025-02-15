@@ -37,22 +37,22 @@ Then, I'll integrate Elasticsearch for search, Redis (Jedis) for caching, and Ro
 
 📌 Backend Microservices Overview
 
-We will create the following Spring Boot microservices:
+We will create the following Spring Boot microservices: 
 
-                	                                            
-        ------------------------------------------------------------------------------------------------------------------------------ 
-        **Service Name**	        **Description Manages**                                      **Technologies Used**
-        ------------------------------------------------------------------------------------------------------------------------------   
-        User Service	         users, authentication, JWT/OAuth2                            Spring Security, Nacos, Redis (Jedis)
-        ------------------------------------------------------------------------------------------------------------------------------  
-        Product Service	     Manages product catalog, Elasticsearch search                    Spring Boot, Elasticsearch, Redis    
-        ------------------------------------------------------------------------------------------------------------------------------  
-        Order Service	      Handles orders, Seata for distributed transactions              Spring Boot, Seata, RocketMQ
-        ------------------------------------------------------------------------------------------------------------------------------  
-        Payment Service	         Processes payments, integrates with order service	      Spring Boot, Seata, RocketMQ
-        ------------------------------------------------------------------------------------------------------------------------------  
-        Notification Service             Sends emails, SMS notifications	                 Spring Boot, RocketMQ
-        ------------------------------------------------------------------------------------------------------------------------------  
+ 	---------------------------------------------------------------------------------------------------------------------
+	Service Name		Description						Technologies Used
+ 	---------------------------------------------------------------------------------------------------------------------
+	User Service		Manages users, authentication, JWT/OAuth2		Spring Security, Nacos, Redis (Jedis)
+ 	---------------------------------------------------------------------------------------------------------------------
+	Product Service		Manages product catalog, Elasticsearch search		Spring Boot, Elasticsearch, Redis
+ 	---------------------------------------------------------------------------------------------------------------------
+	Order Service		Handles orders, Seata for distributed transactions	Spring Boot, Seata, RocketMQ
+ 	---------------------------------------------------------------------------------------------------------------------
+	Payment Service		Processes payments, integrates with order service	Spring Boot, Seata, RocketMQ
+ 	---------------------------------------------------------------------------------------------------------------------
+	Notification Service	Sends emails, SMS notifications				Spring Boot, RocketMQ  
+ 	--------------------------------------------------------------------------------------------------------------------- 
+
 
 1️⃣ Setup Common Dependencies in pom.xml
 
@@ -104,7 +104,9 @@ First, let's create a parent project (ecommerce-backend) and define common depen
 </dependencies>
 
 2️⃣ Setup Nacos Service Discovery
+
 Install & Start Nacos Server
+
 Download & Run Nacos:
 
 
@@ -113,12 +115,12 @@ bash
  
 # For Windows
 
-startup.cmd -m standalone
+	startup.cmd -m standalone
 
 
 # For Linux/Mac
 
-./startup.sh -m standalone
+	./startup.sh -m standalone
 
 ✅ Access Nacos Console at  http://localhost:8848/nacos
 
@@ -127,45 +129,46 @@ Configure application.yml for Each Service
 Each microservice should include the following Nacos service discovery configuration:
 
 yaml
-spring:
-  application:
-    name: user-service   # Change for each microservice
-  cloud:
-    nacos:
-      discovery:
-        server-addr: localhost:8848
+
+	spring:
+ 	 application:
+ 	   name: user-service   # Change for each microservice
+ 	 cloud:
+   	 nacos:
+   	   discovery:
+     	   server-addr: localhost:8848
         
 3️⃣ Implement User Service (Authentication & JWT)
 
 User Entity (User.java)
 
-    @Entity
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String username;
-    private String password;
-    private String email;
-    }
-    @Repository
-    public interface UserRepository extends JpaRepository<User, Long> {
-        Optional<User> findByUsername(String username);
-    }
+   	 @Entity
+  	  @Data
+   	 @NoArgsConstructor
+  	  @AllArgsConstructor
+   	 public class User {
+  	  @Id
+  	  @GeneratedValue(strategy = GenerationType.IDENTITY)
+ 	   private Long id;
+  	  private String username;
+   	 private String password;
+   	 private String email;
+ 	   }
+ 	   @Repository
+ 	   public interface UserRepository extends JpaRepository<User, Long> {
+  	      Optional<User> findByUsername(String username);
+  	  }
     @RestController
-    @RequestMapping("/users")
-    public class UserController {
-    @Autowired
-    private UserService userService;
-    }
+ 	   @RequestMapping("/users")
+ 	   public class UserController {
+  	  @Autowired
+  	  private UserService userService;
+ 	   }
 
-    @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody User user) {
-        return ResponseEntity.ok(userService.saveUser(user));
-    }
+ 	   @PostMapping("/register")
+  	  public ResponseEntity<User> register(@RequestBody User user) {
+  	      return ResponseEntity.ok(userService.saveUser(user));
+  	  }
 
    
 
@@ -310,53 +313,54 @@ Run the following commands to create a Vue 3 project using Vite:
 bash
  
  
-# Create Vue 3 project
-npm create vite@latest ecommerce-frontend --template vue
+	# Create Vue 3 project
+	npm create vite@latest ecommerce-frontend --template vue
 
-# Navigate to project folder
-cd ecommerce-frontend
+	# Navigate to project folder
+	cd ecommerce-frontend
 
 # Install dependencies
-npm install
+	npm install
 
 2️⃣ Install Required Dependencies
 
 bash
  
  
-npm install vue-router@4 axios pinia tailwindcss postcss autoprefixer
-Initialize Tailwind CSS:
+	npm install vue-router@4 axios pinia tailwindcss postcss autoprefixer
+	Initialize Tailwind CSS:
 
 bash
  
  
-npx tailwindcss init -p
-  tailwind.config.js:
+	npx tailwindcss init -p
+ 	 tailwind.config.js:
 
 js
  
  
-module.exports = {
-  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
+	module.exports = {
+ 	 content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
+ 	 theme: {
+  	  extend: {},
+	  },
+ 	 plugins: [],
+	};
+ 
 Add Tailwind to src/assets/tailwind.css:
 
 css
  
  
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-Import Tailwind in main.js:
+	@tailwind base;
+	@tailwind components;
+	@tailwind utilities;
+	Import Tailwind in main.js:
 
 js
  
  
-import "./assets/tailwind.css";
+	import "./assets/tailwind.css";
 
 3️⃣ Configure Vue Router
 
@@ -604,6 +608,7 @@ java
 	        SpringApplication.run(CheckoutServiceApplication.class, args);
 	    }
 	}
+ 
 Step 2: Create Order Entity
 
 java
@@ -736,7 +741,7 @@ java
   	  } catch (Exception e) {
 	        return ResponseEntity.status( Status.BAD_REQUEST).body("Webhook Error");
  	   }
-}
+	}
 
 	private void updateOrderStatus(String transactionId, String status) {
 	    Order order = orderRepository.findByTransactionId(transactionId);
@@ -2479,8 +2484,10 @@ java
     private String reason;
     private LocalDateTime requestDate;
     private LocalDateTime processedDate;
-}
+	}
+
 Dispute Entity
+
 java
  
  
@@ -2515,7 +2522,8 @@ java
         refundService.requestRefund(request);
         return ResponseEntity.ok("Refund request submitted");
     }
-}
+	}
+
 Refund Processing Service
 java
  
@@ -2871,7 +2879,7 @@ java
         }
         return ResponseEntity.ok("Refund processed: " + status);
     }
-}
+	}
 
 ✅ Orders can now be refunded via Stripe or PayPal!
 
@@ -3378,9 +3386,9 @@ We need past order history, user behavior, and product demand.
 
 Example Data Format (Stored in Elasticsearch or MySQL):
 
-        Order ID	User ID	        Product ID	Quantity	Order Date	Category	Total Price
-        1001	        2001	        5001	        2	        2024-01-01	Electronics	499.99
-        1002	        2002	        5002	        1	        2024-01-02	Clothing	39.99
+	Order ID	User ID	Product ID	Quantity	Order Date	Category	Total Price
+	1001		2001	5001		2		2024-01-01	Electronics	499.99
+	1002		2002	5002		1		2024-01-02	Clothing	39.99
 
 ✅ Prepare & Store Order Data!
 
@@ -4412,16 +4420,25 @@ python
 
 To automate refunds, the AI model should assess customer behavior, transaction details, and refund history.
 
-        Feature Name	        Description
-        refund_count_6m	        Number of refunds in the past 6 months
-        refund_ratio	        % of transactions that resulted in refunds
-        high_value_refund	Refund amount vs. user's average transaction
-        chargeback_history	Past chargebacks linked to this user
-        multiple_accounts	User has multiple linked accounts
-        dispute_success_rate	% of disputes won by the customer
-        return_reason_category	Categorized reason for return (e.g., Defective, Fraudulent, No Reason)
-        suspicious_behavior	Whether the user has a high-risk fraud score
-        
+	Feature Name		Description
+ 
+	refund_count_6m		Number of refunds in the past 6 months
+ 
+	refund_ratio		% of transactions that resulted in refunds
+ 
+	high_value_refund	Refund amount vs. user's average transaction
+ 
+	chargeback_history	Past chargebacks linked to this user
+ 
+	multiple_accounts	User has multiple linked accounts
+ 
+	dispute_success_rate	% of disputes won by the customer
+ 
+	return_reason_category	Categorized reason for return (e.g., Defective, Fraudulent, No Reason)
+ 
+	suspicious_behavior	Whether the user has a high-risk fraud score
+ 
+
 Feature Engineering in Python
 
 python
@@ -6324,11 +6341,181 @@ yaml
         
 5️⃣ Rollout Strategy
 
-1️⃣ Start with 10% traffic to v2
+✅ Start with 10% traffic to v2
 
-2️⃣ Monitor logs & metrics (Grafana/Prometheus)
+✅ Monitor logs & metrics (Grafana/Prometheus)
 
-3️⃣ Increase traffic gradually (50%, 100%)
+✅ Increase traffic gradually (50%, 100%)
 
-4️⃣ Rollback if issues arise
+✅ Rollback if issues arise
+
+
+**1️⃣ Why Use Prometheus & Grafana?**
+
+
+✅ Real-time monitoring – Track API latency, error rates, and resource usage.
+
+
+✅ Alerting – Get notified when anomalies occur.
+
+
+✅ Visualization – Build custom dashboards for insights.
+
+
+2️⃣ Install Prometheus & Grafana in Kubernetes
+
+
+ **Deploy Prometheus**
+
+Create a ConfigMap for Prometheus configuration:
+
+yaml 
+
+	apiVersion: v1
+	kind: ConfigMap
+	metadata:
+	  name: prometheus-config
+	  labels:
+ 	   name: prometheus-config
+	data:
+	  prometheus.yml: |
+	    global:
+    	  scrape_interval: 15s
+   	 scrape_configs:
+    	  - job_name: 'kubernetes-pods'
+     	   kubernetes_sd_configs:
+        	  - role: pod
+	   
+Create a Deployment for Prometheus:
+
+yaml
+
+
+	apiVersion: apps/v1
+	kind: Deployment
+	metadata:
+ 	 name: prometheus
+	spec:
+	  replicas: 1
+ 	 selector:
+ 	   matchLabels:
+    	  app: prometheus
+	  template:
+  	  metadata:
+   	   labels:
+    	    app: prometheus
+   	 spec:
+    	  containers:
+       	 - name: prometheus
+      	    image: prom/prometheus
+     	     args:
+        	    - "--config.file=/etc/prometheus/prometheus.yml"
+       	   volumeMounts:
+          	  - name: config-volume
+           	   mountPath: /etc/prometheus
+     	 volumes:
+      	  - name: config-volume
+      	    configMap:
+        	    name: prometheus-config
+	     
+Expose Prometheus using a Service:
+
+yaml
+
+
+	apiVersion: v1
+	kind: Service
+	metadata:
+	  name: prometheus
+	spec:
+ 	 selector:
+	    app: prometheus
+	  ports:
+  	  - protocol: TCP
+  	    port: 9090
+   	   targetPort: 9090
+       
+2️⃣ Deploy Grafana
+
+yaml
+ 
+	apiVersion: apps/v1
+	kind: Deployment
+	metadata:
+	  name: grafana
+	spec:
+ 	 replicas: 1
+ 	 selector:
+  	  matchLabels:
+    	  app: grafana
+  	template:
+   	 metadata:
+      	labels:
+        	app: grafana
+    	spec:
+      	containers:
+        	- name: grafana
+          	image: grafana/grafana
+          	ports:
+            	- containerPort: 3000
+	     
+Expose Grafana using a Service:
+
+yaml
+ 
+	apiVersion: v1
+	kind: Service
+	metadata:
+  	name: grafana
+	spec:
+  	selector:
+    	app: grafana
+  	ports:
+    	- protocol: TCP
+      		port: 3000
+      		targetPort: 3000
+
+
+3️⃣ Connect Prometheus to Grafana
+
+1️⃣ Access Grafana → http://<grafana-ip>:3000
+
+2️⃣ Login → Default credentials (admin/admin)
+
+3️⃣ Add Prometheus as a Data Source
+
+Go to Settings > Data Sources
+
+Select Prometheus
+
+Enter URL: http://prometheus:9090
+
+4️⃣ Create Dashboards
+
+Use PromQL queries like:
+
+promql 
+
+	rate(http_requests_total[5m])
+ 
+Add CPU & Memory Metrics
+
+4️⃣ Set Up Alerts
+
+Define Prometheus Alert Rules:
+
+yaml
+
+	groups:
+ 	 - name: alert-rules
+   	 rules:
+    	  - alert: HighCPUUsage
+    	    expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+     	   for: 1m
+    	    labels:
+    	      severity: critical
+     	   annotations:
+       	   description: "High CPU usage detected!"
+
+
 
