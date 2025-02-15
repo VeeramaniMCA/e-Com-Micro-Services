@@ -2,6 +2,57 @@
 
 Microservices-based e-commerce application using:
 
+ 🏗️ Project Structure
+
+```
+📦 ecommerce-microservices-monitoring
+├── 📂 kubernetes
+│   ├── prometheus-deployment.yaml
+│   ├── grafana-deployment.yaml
+│   ├── istio-canary.yaml
+│   ├── keda-autoscaling.yaml
+│   ├── hpa-config.yaml
+│
+├── 📂 ai
+│   ├── fraud-detection-lstm.py
+│   ├── anomaly-detection-transformer.py
+│   ├── kafka-stream-processing.py
+│
+├── 📂 microservices
+│   ├── order-service
+│   │   ├── Dockerfile
+│   │   ├── application.yml
+│   │   ├── OrderController.java
+│   │   ├── PaymentIntegration.java
+│   │   ├── RefundProcessing.java
+│   │
+│   ├── user-service
+│   │   ├── Dockerfile
+│   │   ├── application.yml
+│   │   ├── UserController.java
+│
+├── 📂 cicd
+│   ├── github-actions.yml
+│   ├── jenkins-pipeline.groovy
+│   ├── security-scan.yml
+│
+├── 📂 scaling
+│   ├── istio-traffic-splitting.yaml
+│   ├── keda-event-driven.yaml
+│
+├── 📂 logging
+│   ├── elasticsearch-config.yaml
+│   ├── logstash-config.conf
+│   ├── kibana-dashboard.json
+│
+├── 📂 docs
+│   ├── SETUP.md
+│   ├── DEPLOYMENT.md
+│   ├── MONITORING.md
+│
+└── README.md
+
+
 ✅ Spring Boot (Backend) 
 
 ✅ Nacos (Service Discovery & Configuration)
