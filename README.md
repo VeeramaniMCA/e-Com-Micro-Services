@@ -1,4 +1,5 @@
-# e-Com-Micro-Services
+# e-Commerce-Micro-Services
+
 Microservices-based e-commerce application using:
 
 ✅ Spring Boot (Backend) 
@@ -28,19 +29,47 @@ Microservices Overview
 5️⃣ Notification Service - Uses RocketMQ to send notifications (Email, SMS)
 
 **Backend Implementation (Spring Boot)**
+
 I'll start by implementing Nacos-based service discovery & Seata for transaction management. 
+
 Then, I'll integrate Elasticsearch for search, Redis (Jedis) for caching, and RocketMQ for messaging.
 
 
 📌 Backend Microservices Overview
+
 We will create the following Spring Boot microservices:
 
-**Service Name	            Description	                                            Technologies Used**
-User Service	          Manages users, authentication, JWT/OAuth2	              Spring Security, Nacos, Redis (Jedis)
-Product Service	        Manages product catalog,                                Elasticsearch search	Spring Boot, Elasticsearch, Redis
-Order Service	          Handles orders, Seata for distributed transactions	    Spring Boot, Seata, RocketMQ
-Payment Service	        Processes payments, integrates with order service	      Spring Boot, Seata, RocketMQ
-Notification Service    Sends emails, SMS notifications	                        Spring Boot, RocketMQ
+                	                                            
+
+**Service Name**	 : User Service	              
+
+**Description Manages**  : users, authentication, JWT/OAuth2	                  
+
+**Technologies Used**  : Spring Security, Nacos, Redis (Jedis)
+
+**Service Name**    : Product Service	            
+
+**Description Manages**  : Manages product catalog, Elasticsearch search	
+
+**Technologies Used**   : Spring Boot, Elasticsearch, Redis
+
+**Service Name**    : Order Service	         
+
+**Description Manages**  : Handles orders, Seata for distributed transactions	  
+
+**Technologies Used**   : Spring Boot, Seata, RocketMQ
+
+**Service Name**    : Payment Service	   
+
+**Description Manages** Processes payments, integrates with order service	  
+
+**Technologies Used**   : Spring Boot, Seata, RocketMQ
+
+**Service Name**    : Notification Service       
+
+**Description Manages**  : Sends emails, SMS notifications	 
+
+**Technologies Used**   : Spring Boot, RocketMQ
 
 
 1️⃣ Setup Common Dependencies in pom.xml
@@ -127,34 +156,36 @@ spring:
 3️⃣ Implement User Service (Authentication & JWT)
 
 User Entity (User.java)
-@Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class User {
+
+    @Entity
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String username;
     private String password;
     private String email;
-}
-
-@Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUsername(String username);
-}
-@RestController
-@RequestMapping("/users")
-public class UserController {
+    }
+    @Repository
+    public interface UserRepository extends JpaRepository<User, Long> {
+        Optional<User> findByUsername(String username);
+    }
+    @RestController
+    @RequestMapping("/users")
+    public class UserController {
     @Autowired
     private UserService userService;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) {
         return ResponseEntity.ok(userService.saveUser(user));
     }
-}
+
+   
 
 ✅ This sets up user authentication!
 
@@ -165,32 +196,35 @@ Product Entity (Product.java)
 java
  
  
-@Document(indexName = "products")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class Product {
-    @Id
-    private String id;
-    private String name;
-    private String description;
-    private double price;
-}
+	@Document(indexName = "products")
+	@Data
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public class Product {
+    	@Id
+    	private String id;
+    	private String name;
+    	private String description;
+    	private double price;
+	}
 Product Repository (ProductRepository.java)
+
 java
  
  
-@Repository
-public interface ProductRepository extends ElasticsearchRepository<Product, String> {
-    List<Product> findByNameContaining(String name);
-}
+	@Repository
+	public interface ProductRepository extends ElasticsearchRepository<Product, String> {
+    	List<Product> findByNameContaining(String name);
+	}
+
 Product Controller (ProductController.java)
+
 java
  
  
-@RestController
-@RequestMapping("/products")
-public class ProductController {
+    @RestController
+    @RequestMapping("/products")
+    public class ProductController {
     @Autowired
     private ProductRepository productRepository;
 
@@ -203,7 +237,7 @@ public class ProductController {
     public ResponseEntity<List<Product>> search(@PathVariable String name) {
         return ResponseEntity.ok(productRepository.findByNameContaining(name));
     }
-}
+    }
 
 ✅ This enables full-text search for products!
 
@@ -213,11 +247,11 @@ Order Entity (Order.java)
 java
  
  
-@Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class Order {
+    @Entity
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -225,14 +259,16 @@ public class Order {
     private Long productId;
     private int quantity;
     private double totalPrice;
-}
+	}
+ 
 Order Controller (OrderController.java)
+
 java
  
  
-@RestController
-@RequestMapping("/orders")
-public class OrderController {
+    @RestController
+    @RequestMapping("/orders")
+    public class OrderController {
     @Autowired
     private OrderService orderService;
 
@@ -241,7 +277,7 @@ public class OrderController {
     public ResponseEntity<Order> createOrder(@RequestBody Order order) {
         return ResponseEntity.ok(orderService.createOrder(order));
     }
-}
+    }
 
 ✅ Seata ensures rollback on failures!
 
@@ -252,24 +288,24 @@ Order Event Producer (OrderService.java)
 java
  
  
-@Autowired
-private RocketMQTemplate rocketMQTemplate;
+    @Autowired
+    private RocketMQTemplate rocketMQTemplate;
 
-public void sendOrderNotification(Long orderId) {
+    public void sendOrderNotification(Long orderId) {
     rocketMQTemplate.convertAndSend("order-topic", "Order Created: " + orderId);
-}
+    }
 Order Event Consumer (NotificationService.java)
 
 java
  
  
-@RocketMQMessageListener(topic = "order-topic", consumerGroup = "order-group")
-public class NotificationConsumer implements RocketMQListener<String> {
+    @RocketMQMessageListener(topic = "order-topic", consumerGroup = "order-group")
+    public class NotificationConsumer implements RocketMQListener<String> {
     @Override
     public void onMessage(String message) {
         System.out.println("📩 Notification Received: " + message);
     }
-}
+    }
 
 ✅ RocketMQ handles async notifications!
 
@@ -347,41 +383,42 @@ Create src/router/index.js:
 js
  
  
-import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "@/views/HomeView.vue";
-import LoginView from "@/views/LoginView.vue";
-import RegisterView from "@/views/RegisterView.vue";
-import ProductView from "@/views/ProductView.vue";
-import CartView from "@/views/CartView.vue";
+    import { createRouter, createWebHistory } from "vue-router";
+    import HomeView from "@/views/HomeView.vue";
+    import LoginView from "@/views/LoginView.vue";
+    import RegisterView from "@/views/RegisterView.vue";
+    import ProductView from "@/views/ProductView.vue";
+    import CartView from "@/views/CartView.vue";
 
-const routes = [
-  { path: "/", component: HomeView },
-  { path: "/login", component: LoginView },
-  { path: "/register", component: RegisterView },
-  { path: "/products", component: ProductView },
-  { path: "/cart", component: CartView },
-];
+    const routes = [
+      { path: "/", component: HomeView },
+      { path: "/login", component: LoginView },
+      { path: "/register", component: RegisterView },
+      { path: "/products", component: ProductView },
+      { path: "/cart", component: CartView },
+    ];
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-});
+    const router = createRouter({
+      history: createWebHistory(),
+      routes,
+    });
 
-export default router;
+    export default router;
+    
 Update main.js to use the router:
 
 js
  
  
-import { createApp } from "vue";
-import App from "./App.vue";
-import router from "./router";
-import { createPinia } from "pinia";
+    import { createApp } from "vue";
+    import App from "./App.vue";
+    import router from "./router";
+    import { createPinia } from "pinia";
 
-const app = createApp(App);
-app.use(router);
-app.use(createPinia());
-app.mount("#app");
+    const app = createApp(App);
+    app.use(router);
+    app.use(createPinia());
+    app.mount("#app");
 
 4️⃣ Setup Global API Configuration (Axios)
 
@@ -390,30 +427,31 @@ Create src/api/index.js:
 js
  
  
-import axios from "axios";
+    import axios from "axios";
 
-const api = axios.create({
-  baseURL: " ://localhost:8080", // Update based on backend
-  headers: { "Content-Type": "application/json" },
-});
+    const api = axios.create({
+      baseURL: " ://localhost:8080", // Update based on backend
+      headers: { "Content-Type": "application/json" },
+    });
 
-export default api;
+    export default api;
 
 5️⃣ Implement Authentication (Login & Register)
 
 Create User Store (src/store/user.js)
+
 js
  
  
-import { defineStore } from "pinia";
-import api from "@/api";
+    import { defineStore } from "pinia";
+    import api from "@/api";
 
-export const useUserStore = defineStore("user", {
-  state: () => ({
-    user: null,
-    token: localStorage.getItem("token") || null,
-  }),
-  actions: {
+    export const useUserStore = defineStore("user", {
+      state: () => ({
+        user: null,
+        token: localStorage.getItem("token") || null,
+      }),
+      actions: {
     async login(credentials) {
       const response = await api.post("/users/login", credentials);
       this.token = response.data.token;
@@ -423,45 +461,48 @@ export const useUserStore = defineStore("user", {
       this.token = null;
       localStorage.removeItem("token");
     },
-  },
-});
+  	}, 
+   	});
+
+ 
 Login Component (src/views/LoginView.vue)
+
 vue
  
  
-<template>
-  <div class="max-w-md mx-auto p-4">
-    <h2 class="text-2xl font-bold mb-4">Login</h2>
-    <form @submit.prevent="login">
-      <input v-model="email" placeholder="Email" class="input" />
-      <input v-model="password" type="password" placeholder="Password" class="input" />
-      <button type="submit" class="btn">Login</button>
-    </form>
-  </div>
-</template>
+	<template>
+  	<div class="max-w-md mx-auto p-4">
+    	<h2 class="text-2xl font-bold mb-4">Login</h2>
+    	<form @submit.prevent="login">
+      	<input v-model="email" placeholder="Email" class="input" />
+      	<input v-model="password" type="password" placeholder="Password" class="input" />
+      	<button type="submit" class="btn">Login</button>
+    	</form>
+  	</div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import { useUserStore } from "@/store/user";
+	<script setup>
+	import { ref } from "vue";
+	import { useUserStore } from "@/store/user";
 
-const email = ref("");
-const password = ref("");
-const userStore = useUserStore();
+	const email = ref("");
+	const password = ref("");
+	const userStore = useUserStore();
 
-const login = async () => {
-  try {
-    await userStore.login({ email: email.value, password: password.value });
-    alert("Login Successful!");
-  } catch (error) {
-    alert("Login Failed!");
-  }
-};
-</script>
+	const login = async () => {
+  	try {
+	    await userStore.login({ email: email.value, password: password.value });
+    	alert("Login Successful!");
+  	} catch (error) {
+    	alert("Login Failed!");
+  	}
+	};
+	</script>
 
-<style>
-.input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; }
-.btn { background-color: blue; color: white; padding: 8px; border: none; cursor: pointer; }
-</style>
+	<style>
+	.input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; }
+	.btn { background-color: blue; color: white; padding: 8px; border: none; cursor: pointer; }
+	</style>
 
 6️⃣ Implement Product Listing (Elasticsearch)
 
@@ -469,50 +510,51 @@ Product Store (src/store/product.js)
 js
  
  
-import { defineStore } from "pinia";
-import api from "@/api";
+	import { defineStore } from "pinia";
+	import api from "@/api";
 
-export const useProductStore = defineStore("product", {
-  state: () => ({
-    products: [],
-  }),
-  actions: {
-    async fetchProducts() {
-      const response = await api.get("/products");
-      this.products = response.data;
-    },
-  },
-});
+	export const useProductStore = defineStore("product", {
+  	state: () => ({
+    	products: [],
+  	}),
+  	actions: {
+    	async fetchProducts() {
+      	const response = await api.get("/products");
+      	this.products = response.data;
+    	},
+  	},
+	});
 Product View (src/views/ProductView.vue)
+
 vue
  
  
-<template>
-  <div class="p-4">
-    <h2 class="text-2xl font-bold">Products</h2>
-    <div v-if="loading">Loading...</div>
-    <div v-else>
-      <div v-for="product in productStore.products" :key="product.id" class="border p-2">
+	<template>
+  	<div class="p-4">
+   	 <h2 class="text-2xl font-bold">Products</h2>
+    	<div v-if="loading">Loading...</div>
+    	<div v-else>
+      	<div v-for="product in productStore.products" :key="product.id" class="border p-2">
         <h3 class="font-bold">{{ product.name }}</h3>
         <p>{{ product.description }}</p>
         <p class="text-green-600">${{ product.price }}</p>
-      </div>
-    </div>
-  </div>
-</template>
+      	</div>
+    	</div>
+	  </div>
+																								</template>
 
-<script setup>
-import { onMounted, ref } from "vue";
-import { useProductStore } from "@/store/product";
+	<script setup>
+	import { onMounted, ref } from "vue";
+	import { useProductStore } from "@/store/product";
 
-const productStore = useProductStore();
-const loading = ref(true);
+	const productStore = useProductStore();
+	const loading = ref(true);
 
-onMounted(async () => {
-  await productStore.fetchProducts();
-  loading.value = false;
-});
-</script>
+	onMounted(async () => {
+  	await productStore.fetchProducts();
+  	loading.value = false;
+	});
+	</script>
 
 7️⃣ Implement Shopping Cart (Jedis - Redis)
 
@@ -520,37 +562,37 @@ Cart Store (src/store/cart.js)
 js
  
  
-import { defineStore } from "pinia";
+	import { defineStore } from "pinia";
 
-export const useCartStore = defineStore("cart", {
-  state: () => ({
-    cart: [],
-  }),
-  actions: {
-    addToCart(product) {
-      this.cart.push(product);
-    },
-  },
-});
+	export const useCartStore = defineStore("cart", {
+  	state: () => ({
+    	cart: [],
+  	}),
+  	actions: {
+    	addToCart(product) {
+      	this.cart.push(product);
+    	},
+  	},
+	});
 Cart View (src/views/CartView.vue)
 vue
  
  
-<template>
-  <div>
-    <h2>Shopping Cart</h2>
-    <ul>
-      <li v-for="item in cartStore.cart" :key="item.id">
-        {{ item.name }} - ${{ item.price }}
-      </li>
-    </ul>
-  </div>
-</template>
+	<template>
+  	<div>
+    	<h2>Shopping Cart</h2>
+    	<ul>
+      	<li v-for="item in cartStore.cart" :key="item.id">
+        	{{ item.name }} - ${{ item.price }}
+      	</li>
+    	</ul>
+  	</div>
+	</template>
 
-<script setup>
-import { useCartStore } from "@/store/cart";
-const cartStore = useCartStore();
-</script>
+	<script setup>
+	import { useCartStore } from "@/store/cart";
+	const cartStore = useCartStore();
+	</script>
 
 🔹 Checkout & Payment Integration Plan
 
@@ -567,60 +609,61 @@ const cartStore = useCartStore();
 1️⃣ Implement Checkout Service (Spring Boot)
 
 Create Checkout Microservice
+
 Step 1: Define CheckoutServiceApplication
 
 java
  
  
-@SpringBootApplication
-@EnableDiscoveryClient
-public class CheckoutServiceApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(CheckoutServiceApplication.class, args);
-    }
-}
+	@SpringBootApplication
+	@EnableDiscoveryClient
+	public class CheckoutServiceApplication {
+	    public static void main(String[] args) {
+	        SpringApplication.run(CheckoutServiceApplication.class, args);
+	    }
+	}
 Step 2: Create Order Entity
 
 java
  
  
-@Entity
-@Table(name = "orders")
-@Data
-public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String userId;
-    private String paymentStatus;
-    private Double totalAmount;
-    private String transactionId;
-}
+	@Entity
+	@Table(name = "orders")
+	@Data
+	public class Order {
+	    @Id
+	    @GeneratedValue(strategy = GenerationType.IDENTITY)
+	    private Long id;
+	    private String userId;
+	    private String paymentStatus;
+ 	   private Double totalAmount;
+ 	   private String transactionId;
+	}
 Step 3: Create OrderRepository
 
 java
  
  
-public interface OrderRepository extends JpaRepository<Order, Long> {
-}
+	public interface OrderRepository extends JpaRepository<Order, Long> {
+	}
 Step 4: Create OrderController
 
 java
  
  
-@RestController
-@RequestMapping("/orders")
-@RequiredArgsConstructor
-public class OrderController {
-    private final OrderRepository orderRepository;
+	@RestController
+	@RequestMapping("/orders")
+	@RequiredArgsConstructor
+	public class OrderController {
+	    private final OrderRepository orderRepository;
     
-    @PostMapping("/checkout")
-    public ResponseEntity<Order> checkout(@RequestBody Order order) {
-        order.setPaymentStatus("PENDING");
-        Order savedOrder = orderRepository.save(order);
-        return ResponseEntity.ok(savedOrder);
-    }
-}
+	    @PostMapping("/checkout")
+	    public ResponseEntity<Order> checkout(@RequestBody Order order) {
+  	      order.setPaymentStatus("PENDING");
+   	     Order savedOrder = orderRepository.save(order);
+   	     return ResponseEntity.ok(savedOrder);
+   	 }
+	}
 
 2️⃣ Integrate Payment Gateway
 
@@ -629,11 +672,11 @@ Step 1: Add Stripe Dependency
 xml
  
  
-<dependency>
-    <groupId>com.stripe</groupId>
-    <artifactId>stripe-java</artifactId>
-    <version>22.3.0</version>
-</dependency>
+	<dependency>
+ 	   <groupId>com.stripe</groupId>
+  	  <artifactId>stripe-java</artifactId>
+ 	   <version>22.3.0</version>
+	</dependency>
 Step 2: Configure Stripe API Key
 Add to application.properties:
 
@@ -641,119 +684,126 @@ ini
  
  
 stripe.secretKey=sk_test_...
+
 Step 3: Create PaymentService
 
 java
  
  
-@Service
-public class PaymentService {
-    @Value("${stripe.secretKey}")
-    private String secretKey;
+	@Service
+	public class PaymentService {
+	    @Value("${stripe.secretKey}")
+	    private String secretKey;
 
-    @PostConstruct
-    public void init() {
-        Stripe.apiKey = secretKey;
-    }
+	    @PostConstruct
+	    public void init() {
+    	    Stripe.apiKey = secretKey;
+ 	   }
 
-    public String createPaymentIntent(Double amount) throws StripeException {
-        PaymentIntentCreateParams params =
-            PaymentIntentCreateParams.builder()
-                .setAmount((long) (amount * 100))
-                .setCurrency("usd")
-                .build();
+ 	   public String createPaymentIntent(Double amount) throws StripeException {
+  	      PaymentIntentCreateParams params =
+     	       PaymentIntentCreateParams.builder()
+     	           .setAmount((long) (amount * 100))
+    	            .setCurrency("usd")
+     	           .build();
 
-        PaymentIntent intent = PaymentIntent.create(params);
-        return intent.getClientSecret();
-    }
-}
+     	   PaymentIntent intent = PaymentIntent.create(params);
+      	  return intent.getClientSecret();
+  	  }
+	}
 Step 4: Create PaymentController
 
 java
  
  
-@RestController
-@RequestMapping("/payment")
-@RequiredArgsConstructor
-public class PaymentController {
-    private final PaymentService paymentService;
+	@RestController
+	@RequestMapping("/payment")
+	@RequiredArgsConstructor
+	public class PaymentController {
+   	 private final PaymentService paymentService;
 
-    @PostMapping("/create-payment-intent")
-    public ResponseEntity<String> createPaymentIntent(@RequestBody Map<String, Object> request) {
-        try {
-            String clientSecret = paymentService.createPaymentIntent((Double) request.get("amount"));
-            return ResponseEntity.ok(clientSecret);
-        } catch (Exception e) {
-            return ResponseEntity.status( Status.INTERNAL_SERVER_ERROR).body("Payment failed.");
-        }
-    }
-}
+   	 @PostMapping("/create-payment-intent")
+  	  public ResponseEntity<String> createPaymentIntent(@RequestBody Map<String, Object> request) {
+   	     try {
+   	         String clientSecret = paymentService.createPaymentIntent((Double) request.get("amount"));
+    	        return ResponseEntity.ok(clientSecret);
+     	   } catch (Exception e) {
+     	       return ResponseEntity.status( Status.INTERNAL_SERVER_ERROR).body("Payment failed.");
+       	 }
+	    }
+	}
 
 3️⃣ Handle Order Processing & Inventory
 
 Update Order After Payment Success
+
 Step 1: Create Stripe Webhook
+
 java
  
  
-@PostMapping("/webhook")
-public ResponseEntity<String> handleWebhook(@RequestBody String payload, @RequestHeader("Stripe-Signature") String sigHeader) {
-    try {
-        Event event = Webhook.constructEvent(payload, sigHeader, "your-webhook-secret");
-        if ("payment_intent.succeeded".equals(event.getType())) {
-            PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
-            updateOrderStatus(intent.getId(), "PAID");
-        }
-        return ResponseEntity.ok("Received");
-    } catch (Exception e) {
-        return ResponseEntity.status( Status.BAD_REQUEST).body("Webhook Error");
-    }
+	@PostMapping("/webhook")
+	public ResponseEntity<String> handleWebhook(@RequestBody String payload, @RequestHeader("Stripe-Signature") String sigHeader) {
+ 	   try {
+   	     Event event = Webhook.constructEvent(payload, sigHeader, "your-webhook-secret");
+     	   if ("payment_intent.succeeded".equals(event.getType())) {
+    	        PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
+    	        updateOrderStatus(intent.getId(), "PAID");
+   	 	    }
+    	    return ResponseEntity.ok("Received");
+  	  } catch (Exception e) {
+	        return ResponseEntity.status( Status.BAD_REQUEST).body("Webhook Error");
+ 	   }
 }
 
-private void updateOrderStatus(String transactionId, String status) {
-    Order order = orderRepository.findByTransactionId(transactionId);
-    if (order != null) {
-        order.setPaymentStatus(status);
-        orderRepository.save(order);
-    }
-}
+	private void updateOrderStatus(String transactionId, String status) {
+	    Order order = orderRepository.findByTransactionId(transactionId);
+	    if (order != null) {
+	        order.setPaymentStatus(status);
+  	      orderRepository.save(order);
+  	  }
+	}
 
 4️⃣ Implement Checkout in Vue.js
 
 Step 1: Install Stripe.js
+
 bash
  
  
-npm install @stripe/stripe-js
+	npm install @stripe/stripe-js
+ 
 Step 2: Create Checkout Component
+
 vue
  
  
-<template>
-  <div class="checkout">
-    <h2>Checkout</h2>
-    <button @click="initiatePayment" class="btn">Pay Now</button>
-    <div v-if="message">{{ message }}</div>
-  </div>
-</template>
+	<template>
+	  <div class="checkout">
+	    <h2>Checkout</h2>
+  	  <button @click="initiatePayment" class="btn">Pay Now</button>
+ 	   <div v-if="message">{{ message }}</div>
+	  </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import { loadStripe } from "@stripe/stripe-js";
-import api from "@/api";
+	<script setup>
+	import { ref } from "vue";
+	import { loadStripe } from "@stripe/stripe-js";
+	import api from "@/api";
 
-const message = ref("");
+	const message = ref("");
 
-const initiatePayment = async () => {
-  const stripe = await loadStripe("your-publishable-key");
-  const { data } = await api.post("/payment/create-payment-intent", { amount: 100 });
-  const result = await stripe.redirectToCheckout({ sessionId: data });
+	const initiatePayment = async () => {
+	  const stripe = await loadStripe("your-publishable-key");
+	  const { data } = await api.post("/payment/create-payment-intent", { amount: 100 });
+ 	 const result = await stripe.redirectToCheckout({ sessionId: data });
 
-  if (result.error) {
-    message.value = result.error.message;
-  }
-};
-</script>
+ 	 if (result.error) {
+  	  message.value = result.error.message;
+ 	 }
+	};
+	</script>
+
 
 5️⃣ Deploy & Test
 
@@ -776,65 +826,67 @@ const initiatePayment = async () => {
 1️⃣ Implement Order Tracking API
 
 Step 1: Update Order Entity
+
 Modify the Order entity to track statuses:
 
 java
  
  
-@Entity
-@Table(name = "orders")
-@Data
-public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String userId;
-    private String paymentStatus;
-    private String orderStatus;  // New field (PLACED, SHIPPED, DELIVERED)
-    private Double totalAmount;
-    private String trackingNumber;
-}
-Step 2: Create OrderTrackingService
+	@Entity
+	@Table(name = "orders")
+	@Data
+	public class Order {
+	    @Id
+ 	   @GeneratedValue(strategy = GenerationType.IDENTITY)
+  	  private Long id;
+  	  private String userId;
+ 	   private String paymentStatus;
+ 	   private String orderStatus;  // New field (PLACED, SHIPPED, DELIVERED)
+  	  private Double totalAmount;
+  	  private String trackingNumber;
+	}
+	Step 2: Create OrderTrackingService
 
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderTrackingService {
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class OrderTrackingService {
+ 	   private final OrderRepository orderRepository;
 
-    public Order updateOrderStatus(Long orderId, String status) {
-        Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order Not Found"));
-        order.setOrderStatus(status);
-        return orderRepository.save(order);
-    }
+ 	   public Order updateOrderStatus(Long orderId, String status) {
+     	   Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order Not Found"));
+    	    order.setOrderStatus(status);
+   	     return orderRepository.save(order);
+  	  }
 
-    public Order getOrderTracking(String trackingNumber) {
-        return orderRepository.findByTrackingNumber(trackingNumber).orElseThrow(() -> new RuntimeException("Tracking Not Found"));
-    }
-}
+	    public Order getOrderTracking(String trackingNumber) {
+ 	       return orderRepository.findByTrackingNumber(trackingNumber).orElseThrow(() -> new RuntimeException("Tracking Not Found"));
+ 	   }
+	}
 Step 3: Create OrderTrackingController
 
 java
  
  
-@RestController
-@RequestMapping("/order-tracking")
-@RequiredArgsConstructor
-public class OrderTrackingController {
-    private final OrderTrackingService orderTrackingService;
+	@RestController
+	@RequestMapping("/order-tracking")
+	@RequiredArgsConstructor
+	public class OrderTrackingController {
+	    private final OrderTrackingService orderTrackingService;
 
-    @PutMapping("/{orderId}/update-status")
-    public ResponseEntity<Order> updateOrderStatus(@PathVariable Long orderId, @RequestParam String status) {
-        return ResponseEntity.ok(orderTrackingService.updateOrderStatus(orderId, status));
-    }
+   	 @PutMapping("/{orderId}/update-status")
+    	public ResponseEntity<Order> updateOrderStatus(@PathVariable Long orderId, @RequestParam String status) {
+       	 return ResponseEntity.ok(orderTrackingService.updateOrderStatus(orderId, status));
+    	}
 
-    @GetMapping("/{trackingNumber}")
-    public ResponseEntity<Order> trackOrder(@PathVariable String trackingNumber) {
-        return ResponseEntity.ok(orderTrackingService.getOrderTracking(trackingNumber));
-    }
-}
+   	 @GetMapping("/{trackingNumber}")
+  	  public ResponseEntity<Order> trackOrder(@PathVariable String trackingNumber) {
+       	 return ResponseEntity.ok(orderTrackingService.getOrderTracking(trackingNumber));
+   	 }
+	}
+ 
 ✅ Now users can track their orders via API!
 
 2️⃣ Implement Notifications
@@ -842,57 +894,63 @@ public class OrderTrackingController {
 We’ll use RocketMQ for event-driven notifications.
 
 Step 1: Add RocketMQ Dependency
+
 xml
  
  
-<dependency>
-    <groupId>org.apache.rocketmq</groupId>
-    <artifactId>rocketmq-spring-boot-starter</artifactId>
-    <version>2.2.1</version>
-</dependency>
+	<dependency>
+ 	   <groupId>org.apache.rocketmq</groupId>
+  	  <artifactId>rocketmq-spring-boot-starter</artifactId>
+   	 <version>2.2.1</version>
+	</dependency>
+ 
 Step 2: Create OrderEvent Class
 
 java
  
  
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class OrderEvent {
-    private Long orderId;
-    private String userId;
-    private String orderStatus;
-}
+	@Data
+	@AllArgsConstructor
+	@NoArgsConstructor
+	public class OrderEvent {
+ 	   private Long orderId;
+ 	   private String userId;
+	    private String orderStatus;
+	}
+ 
 Step 3: Publish Order Event
+
 
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderEventPublisher {
-    private final RocketMQTemplate rocketMQTemplate;
+	@Service
+	@RequiredArgsConstructor
+	public class OrderEventPublisher {
+   	 private final RocketMQTemplate rocketMQTemplate;
 
-    public void sendOrderStatusUpdate(Long orderId, String userId, String status) {
-        OrderEvent event = new OrderEvent(orderId, userId, status);
-        rocketMQTemplate.convertAndSend("order-status-topic", event);
-    }
-}
+ 	   public void sendOrderStatusUpdate(Long orderId, String userId, String status) {
+      	  OrderEvent event = new OrderEvent(orderId, userId, status);
+       	 rocketMQTemplate.convertAndSend("order-status-topic", event);
+   	 }
+	}
+ 
 Step 4: Consume Event & Send Notifications
 
 java
  
  
-@RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-notification-group")
-@Service
-public class OrderNotificationListener implements RocketMQListener<OrderEvent> {
-    @Override
-    public void onMessage(OrderEvent event) {
-        System.out.println("Sending notification to user: " + event.getUserId() +
-            " - Order " + event.getOrderId() + " is now " + event.getOrderStatus());
-        // Integrate Email/SMS here
-    }
-}
+	@RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-notification-group")
+	@Service
+	public class OrderNotificationListener implements RocketMQListener<OrderEvent> {
+   	 @Override
+    	public void onMessage(OrderEvent event) {
+       	 System.out.println("Sending notification to user: " + event.getUserId() +
+         	   " - Order " + event.getOrderId() + " is now " + event.getOrderStatus());
+        	// Integrate Email/SMS here
+    	}
+	}
+ 
 3️⃣ Add Real-Time Notifications (WebSocket)
 
 To notify users instantly when order status changes.
@@ -902,88 +960,91 @@ Step 1: Add WebSocket Config
 java
  
  
-@Configuration
-@EnableWebSocket
-public class WebSocketConfig implements WebSocketConfigurer {
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new OrderStatusWebSocketHandler(), "/order-updates").setAllowedOrigins("*");
-    }
-}
+	@Configuration
+	@EnableWebSocket
+	public class WebSocketConfig implements WebSocketConfigurer {
+   	 @Override
+   	 public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+     	   registry.addHandler(new OrderStatusWebSocketHandler(), "/order-updates").setAllowedOrigins("*");
+  	  }
+	}
 Step 2: Implement WebSocket Handler
 
 java
  
  
-@Component
-public class OrderStatusWebSocketHandler extends TextWebSocketHandler {
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+	@Component
+	public class OrderStatusWebSocketHandler extends TextWebSocketHandler {
+   	 private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        sessions.put(session.getId(), session);
-    }
+ 	   @Override
+    	public void afterConnectionEstablished(WebSocketSession session) {
+     	   sessions.put(session.getId(), session);
+  	  }
 
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+  	  @Override
+   	 protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         session.sendMessage(new TextMessage("Connected for order updates"));
-    }
+  	  }
 
-    public void sendOrderUpdate(String message) throws IOException {
-        for (WebSocketSession session : sessions.values()) {
-            session.sendMessage(new TextMessage(message));
-        }
-    }
-}
+    	public void sendOrderUpdate(String message) throws IOException {
+       	 for (WebSocketSession session : sessions.values()) {
+        	    session.sendMessage(new TextMessage(message));
+   	     }
+  	  }
+	}
+ 
 4️⃣ Frontend Order Tracking & Notifications (Vue.js)
 
 Step 1: Track Order via API
+
 vue
  
  
-<template>
-  <div>
-    <input v-model="trackingNumber" placeholder="Enter Tracking Number" />
-    <button @click="trackOrder">Track Order</button>
-    <p v-if="order">Status: {{ order.orderStatus }}</p>
-  </div>
-</template>
+	<template>
+  	<div>
+   	 <input v-model="trackingNumber" placeholder="Enter Tracking Number" />
+   	 <button @click="trackOrder">Track Order</button>
+    	<p v-if="order">Status: {{ order.orderStatus }}</p>
+ 	 </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	<script setup>
+	import { ref } from "vue";
+	import api from "@/api";
 
-const trackingNumber = ref("");
-const order = ref(null);
+	const trackingNumber = ref("");
+	const order = ref(null);
 
-const trackOrder = async () => {
-  const { data } = await api.get(`/order-tracking/${trackingNumber.value}`);
-  order.value = data;
-};
-</script>
-Step 2: Show Real-Time Updates with WebSocket
+	const trackOrder = async () => {
+	  const { data } = await api.get(`/order-tracking/${trackingNumber.value}`);
+	  order.value = data;
+	};
+	</script>
+	Step 2: Show Real-Time Updates with WebSocket
 vue
  
  
-<template>
-  <div>
-    <h3>Live Order Updates</h3>
-    <p>{{ message }}</p>
-  </div>
-</template>
+	<template>
+	  <div>
+  	  <h3>Live Order Updates</h3>
+  	  <p>{{ message }}</p>
+ 	 </div>
+	</template>
 
-<script setup>
-import { ref, onMounted } from "vue";
+	<script setup>
+	import { ref, onMounted } from "vue";
 
-const message = ref("");
+	const message = ref("");
 
-onMounted(() => {
-  const socket = new WebSocket("ws://localhost:8080/order-updates");
-  socket.onmessage = (event) => {
-    message.value = event.data;
-  };
-});
-</script>
+	onMounted(() => {
+	  const socket = new WebSocket("ws://localhost:8080/order-updates");
+	  socket.onmessage = (event) => {
+	    message.value = event.data;
+	  };
+	});
+	</script>
+ 
 🚀 Final Steps
 
 ✅ Order Tracking API with Status Updates
@@ -1013,30 +1074,31 @@ Define an OrderStatus enum to manage statuses:
 java
  
  
-public enum OrderStatus {
-    PLACED, PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
-}
+	public enum OrderStatus {
+	    PLACED, PROCESSING, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+	}
+ 
 Update the Order entity to use this enum:
 
 java
  
  
-@Entity
-@Table(name = "orders")
-@Data
-public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String userId;
-    private String paymentStatus;
+	@Entity
+	@Table(name = "orders")
+	@Data
+	public class Order {
+  	  @Id
+  	  @GeneratedValue(strategy = GenerationType.IDENTITY)
+   	 private Long id;
+   	 private String userId;
+  	  private String paymentStatus;
     
-    @Enumerated(EnumType.STRING)
-    private OrderStatus orderStatus;  // Use Enum instead of String
+    	@Enumerated(EnumType.STRING)
+   	 private OrderStatus orderStatus;  // Use Enum instead of String
 
-    private Double totalAmount;
-    private String trackingNumber;
-}
+  	  private Double totalAmount;
+  	  private String trackingNumber;
+	}
 
 2️⃣ Implement Order Status Update API
 
@@ -1045,34 +1107,35 @@ Create OrderStatusService
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderStatusService {
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class OrderStatusService {
+ 	   private final OrderRepository orderRepository;
 
-    public Order updateOrderStatus(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
-        order.setOrderStatus(status);
-        return orderRepository.save(order);
-    }
-}
+   	 public Order updateOrderStatus(Long orderId, OrderStatus status) {
+      	  Order order = orderRepository.findById(orderId)
+            	    .orElseThrow(() -> new RuntimeException("Order Not Found"));
+        	order.setOrderStatus(status);
+       	 return orderRepository.save(order);
+  	  }
+	}
 Create OrderStatusController
 
 java
  
  
-@RestController
-@RequestMapping("/order-status")
-@RequiredArgsConstructor
-public class OrderStatusController {
-    private final OrderStatusService orderStatusService;
+	@RestController
+	@RequestMapping("/order-status")
+	@RequiredArgsConstructor
+	public class OrderStatusController {
+ 	   private final OrderStatusService orderStatusService;
 
-    @PutMapping("/{orderId}")
-    public ResponseEntity<Order> updateStatus(@PathVariable Long orderId, @RequestParam OrderStatus status) {
-        return ResponseEntity.ok(orderStatusService.updateOrderStatus(orderId, status));
-    }
-}
+   	 @PutMapping("/{orderId}")
+ 	   public ResponseEntity<Order> updateStatus(@PathVariable Long orderId, @RequestParam OrderStatus status) {
+    	    return ResponseEntity.ok(orderStatusService.updateOrderStatus(orderId, status));
+   	 }
+	}
+ 
 ✅ Now, you can update order status using:
 
 PUT /order-status/{orderId}?status=SHIPPED
@@ -1086,30 +1149,31 @@ Step 1: Publish Status Change Event
  java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderStatusEventPublisher {
-    private final RocketMQTemplate rocketMQTemplate;
+	@Service
+	@RequiredArgsConstructor
+	public class OrderStatusEventPublisher {
+   	 private final RocketMQTemplate rocketMQTemplate;
 
-    public void sendOrderStatusUpdate(Long orderId, String userId, OrderStatus status) {
-        OrderEvent event = new OrderEvent(orderId, userId, status);
-        rocketMQTemplate.convertAndSend("order-status-topic", event);
-    }
-}
+  	  public void sendOrderStatusUpdate(Long orderId, String userId, OrderStatus status) {
+    	    OrderEvent event = new OrderEvent(orderId, userId, status);
+   	     rocketMQTemplate.convertAndSend("order-status-topic", event);
+  	  }
+	}
+ 
 Step 2: Consume Event & Send Notifications
 
 java
  
  
-@RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-notification-group")
-@Service
-public class OrderStatusNotificationListener implements RocketMQListener<OrderEvent> {
-    @Override
-    public void onMessage(OrderEvent event) {
-        System.out.println("Notification: Order " + event.getOrderId() + " is now " + event.getOrderStatus());
-        // Send Email/SMS/WebSocket Notification
-    }
-}
+	@RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-notification-group")
+	@Service
+	public class OrderStatusNotificationListener implements RocketMQListener<OrderEvent> {
+  	  @Override
+   	 public void onMessage(OrderEvent event) {
+       	 System.out.println("Notification: Order " + event.getOrderId() + " is now " + event.getOrderStatus());
+       	 // Send Email/SMS/WebSocket Notification
+  	  }
+	}
 
 4️⃣ Update Frontend (Vue.js)
 
@@ -1118,49 +1182,50 @@ Step 1: Show Order Status
 vue
  
  
-<template>
-  <div>
-    <h3>Order Status: {{ orderStatus }}</h3>
-  </div>
-</template>
+	<template>
+ 	 <div>
+   	 <h3>Order Status: {{ orderStatus }}</h3>
+ 	 </div>
+	</template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import api from "@/api";
+	<script setup>
+	import { ref, onMounted } from "vue";
+	import api from "@/api";
 
-const orderStatus = ref("PLACED");
+	const orderStatus = ref("PLACED");
 
-const fetchOrderStatus = async (orderId) => {
-  const { data } = await api.get(`/order-tracking/${orderId}`);
-  orderStatus.value = data.orderStatus;
-};
+	const fetchOrderStatus = async (orderId) => {
+ 	 const { data } = await api.get(`/order-tracking/${orderId}`);
+ 	 orderStatus.value = data.orderStatus;
+	};
 
-onMounted(() => fetchOrderStatus(1));
-</script>
+	onMounted(() => fetchOrderStatus(1));
+	</script>
+ 
 Step 2: Show Live Updates using WebSocket
 
 vue
  
  
-<template>
-  <div>
-    <h3>Live Order Updates</h3>
-    <p>{{ message }}</p>
-  </div>
-</template>
+	<template>
+ 	 <div>
+   	 <h3>Live Order Updates</h3>
+  	  <p>{{ message }}</p>
+ 	 </div>
+	</template>
 
-<script setup>
-import { ref, onMounted } from "vue";
+	<script setup>
+	import { ref, onMounted } from "vue";
 
-const message = ref("");
+	const message = ref("");
 
-onMounted(() => {
-  const socket = new WebSocket("ws://localhost:8080/order-updates");
-  socket.onmessage = (event) => {
-    message.value = event.data;
-  };
-});
-</script>
+	onMounted(() => {
+ 	 const socket = new WebSocket("ws://localhost:8080/order-updates");
+  	socket.onmessage = (event) => {
+   	 message.value = event.data;
+  	};
+	});
+	</script>
 
 🚀 Final Steps
 
@@ -1191,31 +1256,31 @@ Refund Entity
 java
  
  
-@Entity
-@Table(name = "refunds")
-@Data
-public class Refund {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private Long orderId;
-    private String userId;
+	@Entity
+	@Table(name = "refunds")
+	@Data
+	public class Refund {
+   	 @Id
+  	  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  	  private Long id;
+  	  private Long orderId;
+  	  private String userId;
     
-    @Enumerated(EnumType.STRING)
-    private RefundStatus refundStatus; // REQUESTED, APPROVED, REJECTED, COMPLETED
+   	 @Enumerated(EnumType.STRING)
+    	private RefundStatus refundStatus; // REQUESTED, APPROVED, REJECTED, COMPLETED
 
-    private Double refundAmount;
-    private String reason;
-    private LocalDateTime createdAt;
-}
+	    private Double refundAmount;
+   	 private String reason;
+   	 private LocalDateTime createdAt;
+	}
 Refund Status Enum
 
 java
  
  
-public enum RefundStatus {
-    REQUESTED, APPROVED, REJECTED, COMPLETED
-}
+	public enum RefundStatus {
+	    REQUESTED, APPROVED, REJECTED, COMPLETED
+	}
 
 2️⃣ Implement Refund Request API
 
@@ -1224,57 +1289,57 @@ Refund Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class RefundService {
-    private final RefundRepository refundRepository;
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class RefundService {
+	    private final RefundRepository refundRepository;
+ 	   private final OrderRepository orderRepository;
 
-    public Refund requestRefund(Long orderId, String userId, Double amount, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+  	  public Refund requestRefund(Long orderId, String userId, Double amount, String reason) {
+    	    Order order = orderRepository.findById(orderId)
+      	          .orElseThrow(() -> new RuntimeException("Order Not Found"));
 
-        Refund refund = new Refund();
-        refund.setOrderId(orderId);
-        refund.setUserId(userId);
-        refund.setRefundAmount(amount);
-        refund.setReason(reason);
-        refund.setRefundStatus(RefundStatus.REQUESTED);
-        refund.setCreatedAt(LocalDateTime.now());
+      	  Refund refund = new Refund();
+     	   refund.setOrderId(orderId);
+    	    refund.setUserId(userId);
+      	  refund.setRefundAmount(amount);
+      	  refund.setReason(reason);
+       	 refund.setRefundStatus(RefundStatus.REQUESTED);
+     	   refund.setCreatedAt(LocalDateTime.now());
 
-        return refundRepository.save(refund);
-    }
+      	  return refundRepository.save(refund);
+   	 }
 
-    public Refund updateRefundStatus(Long refundId, RefundStatus status) {
-        Refund refund = refundRepository.findById(refundId)
-                .orElseThrow(() -> new RuntimeException("Refund Not Found"));
-        refund.setRefundStatus(status);
-        return refundRepository.save(refund);
-    }
-}
+  	  public Refund updateRefundStatus(Long refundId, RefundStatus status) {
+	        Refund refund = refundRepository.findById(refundId)
+    	            .orElseThrow(() -> new RuntimeException("Refund Not Found"));
+   	     refund.setRefundStatus(status);
+    	    return refundRepository.save(refund);
+ 	   }
+	}
 
 Refund Controller
 
 java
  
  
-@RestController
-@RequestMapping("/refunds")
-@RequiredArgsConstructor
-public class RefundController {
-    private final RefundService refundService;
+	@RestController
+	@RequestMapping("/refunds")
+	@RequiredArgsConstructor
+	public class RefundController {
+  	  private final RefundService refundService;
 
-    @PostMapping("/request")
-    public ResponseEntity<Refund> requestRefund(@RequestParam Long orderId, @RequestParam String userId, 
-                                                @RequestParam Double amount, @RequestParam String reason) {
-        return ResponseEntity.ok(refundService.requestRefund(orderId, userId, amount, reason));
-    }
+   	 @PostMapping("/request")
+  	  public ResponseEntity<Refund> requestRefund(@RequestParam Long orderId, @RequestParam String userId, 
+        	                                        @RequestParam Double amount, @RequestParam String reason) {
+      	  return ResponseEntity.ok(refundService.requestRefund(orderId, userId, amount, reason));
+   	 }
 
-    @PutMapping("/{refundId}/update-status")
-    public ResponseEntity<Refund> updateRefundStatus(@PathVariable Long refundId, @RequestParam RefundStatus status) {
-        return ResponseEntity.ok(refundService.updateRefundStatus(refundId, status));
-    }
-}
+  	  @PutMapping("/{refundId}/update-status")
+  	  public ResponseEntity<Refund> updateRefundStatus(@PathVariable Long refundId, @RequestParam RefundStatus status) {
+    	    return ResponseEntity.ok(refundService.updateRefundStatus(refundId, status));
+   	 }
+	}
 
 ✅ Now, users can request refunds and admins can approve/reject them!
 
@@ -1285,89 +1350,90 @@ Dispute Entity
 java
  
  
-@Entity
-@Table(name = "disputes")
-@Data
-public class Dispute {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private Long orderId;
-    private String userId;
+	@Entity
+	@Table(name = "disputes")
+	@Data
+	public class Dispute {
+  	  @Id
+   	 @GeneratedValue(strategy = GenerationType.IDENTITY)
+  	  private Long id;
+   	 private Long orderId;
+   	 private String userId;
     
-    @Enumerated(EnumType.STRING)
-    private DisputeStatus disputeStatus; // OPEN, IN_REVIEW, RESOLVED, REJECTED
+   	 @Enumerated(EnumType.STRING)
+    	private DisputeStatus disputeStatus; // OPEN, IN_REVIEW, RESOLVED, REJECTED
 
-    private String reason;
-    private String resolution;
-    private LocalDateTime createdAt;
-}
+	    private String reason;
+  	  private String resolution;
+  	  private LocalDateTime createdAt;
+	}
+ 
 Dispute Status Enum
 
 java
  
  
-public enum DisputeStatus {
-    OPEN, IN_REVIEW, RESOLVED, REJECTED
-}
+	public enum DisputeStatus {
+  	  OPEN, IN_REVIEW, RESOLVED, REJECTED
+	}
 
 Dispute Service
 
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class DisputeService {
-    private final DisputeRepository disputeRepository;
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class DisputeService {
+   	 private final DisputeRepository disputeRepository;
+   	 private final OrderRepository orderRepository;
 
-    public Dispute createDispute(Long orderId, String userId, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+  	  public Dispute createDispute(Long orderId, String userId, String reason) {
+   	     Order order = orderRepository.findById(orderId)
+       	         .orElseThrow(() -> new RuntimeException("Order Not Found"));
 
-        Dispute dispute = new Dispute();
-        dispute.setOrderId(orderId);
-        dispute.setUserId(userId);
-        dispute.setReason(reason);
-        dispute.setDisputeStatus(DisputeStatus.OPEN);
-        dispute.setCreatedAt(LocalDateTime.now());
+     	   Dispute dispute = new Dispute();
+     	   dispute.setOrderId(orderId);
+      	  dispute.setUserId(userId);
+       	 dispute.setReason(reason);
+     	   dispute.setDisputeStatus(DisputeStatus.OPEN);
+    	    dispute.setCreatedAt(LocalDateTime.now());
 
-        return disputeRepository.save(dispute);
-    }
+      	  return disputeRepository.save(dispute);
+  	  }
 
-    public Dispute resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
-        Dispute dispute = disputeRepository.findById(disputeId)
-                .orElseThrow(() -> new RuntimeException("Dispute Not Found"));
-        dispute.setDisputeStatus(status);
-        dispute.setResolution(resolution);
-        return disputeRepository.save(dispute);
-    }
-}
+   	 public Dispute resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
+      	  Dispute dispute = disputeRepository.findById(disputeId)
+        	        .orElseThrow(() -> new RuntimeException("Dispute Not Found"));
+       	 dispute.setDisputeStatus(status);
+       	 dispute.setResolution(resolution);
+       	 return disputeRepository.save(dispute);
+   	 }
+	}
 Dispute Controller
 
 java
  
  
-@RestController
-@RequestMapping("/disputes")
-@RequiredArgsConstructor
-public class DisputeController {
-    private final DisputeService disputeService;
+	@RestController
+	@RequestMapping("/disputes")
+	@RequiredArgsConstructor
+	public class DisputeController {
+   	 private final DisputeService disputeService;
 
-    @PostMapping("/create")
-    public ResponseEntity<Dispute> createDispute(@RequestParam Long orderId, @RequestParam String userId, 
-                                                 @RequestParam String reason) {
-        return ResponseEntity.ok(disputeService.createDispute(orderId, userId, reason));
-    }
+  	  @PostMapping("/create")
+   	 public ResponseEntity<Dispute> createDispute(@RequestParam Long orderId, @RequestParam String userId, 
+           	                                      @RequestParam String reason) {
+        	return ResponseEntity.ok(disputeService.createDispute(orderId, userId, reason));
+  	  }
 
-    @PutMapping("/{disputeId}/resolve")
-    public ResponseEntity<Dispute> resolveDispute(@PathVariable Long disputeId, 
-                                                  @RequestParam DisputeStatus status, 
-                                                  @RequestParam String resolution) {
-        return ResponseEntity.ok(disputeService.resolveDispute(disputeId, status, resolution));
-    }
-}
+  	  @PutMapping("/{disputeId}/resolve")
+   	 public ResponseEntity<Dispute> resolveDispute(@PathVariable Long disputeId, 
+          	                                        @RequestParam DisputeStatus status, 
+        	                                          @RequestParam String resolution) {
+       	 return ResponseEntity.ok(disputeService.resolveDispute(disputeId, status, resolution));
+  	  }
+	}
 
 ✅ Now, users can create disputes, and admins can review & resolve them!
 
@@ -1380,19 +1446,19 @@ RocketMQ Notification Publisher
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class NotificationPublisher {
-    private final RocketMQTemplate rocketMQTemplate;
+	@Service
+	@RequiredArgsConstructor
+	public class NotificationPublisher {
+	    private final RocketMQTemplate rocketMQTemplate;
 
-    public void sendRefundStatusUpdate(Long refundId, String userId, RefundStatus status) {
-        rocketMQTemplate.convertAndSend("refund-status-topic", new NotificationEvent(refundId, userId, status.name()));
-    }
+	    public void sendRefundStatusUpdate(Long refundId, String userId, RefundStatus status) {
+	        rocketMQTemplate.convertAndSend("refund-status-topic", new NotificationEvent(refundId, userId, status.name()));
+	    }
 
-    public void sendDisputeStatusUpdate(Long disputeId, String userId, DisputeStatus status) {
-        rocketMQTemplate.convertAndSend("dispute-status-topic", new NotificationEvent(disputeId, userId, status.name()));
-    }
-}
+	    public void sendDisputeStatusUpdate(Long disputeId, String userId, DisputeStatus status) {
+   	     rocketMQTemplate.convertAndSend("dispute-status-topic", new NotificationEvent(disputeId, userId, status.name()));
+  	  }
+	}
 
 ✅ Real-time notifications when refunds or disputes are updated!
 
@@ -1402,59 +1468,59 @@ Submit Refund Request (Vue.js)
 vue
  
  
-<template>
-  <div>
-    <h3>Request a Refund</h3>
-    <input v-model="orderId" placeholder="Order ID" />
-    <input v-model="amount" placeholder="Refund Amount" />
-    <input v-model="reason" placeholder="Reason" />
-    <button @click="requestRefund">Submit</button>
-  </div>
-</template>
+	<template>
+ 	 <div>
+   	 <h3>Request a Refund</h3>
+  	  <input v-model="orderId" placeholder="Order ID" />
+   	 <input v-model="amount" placeholder="Refund Amount" />
+  	  <input v-model="reason" placeholder="Reason" />
+   	 <button @click="requestRefund">Submit</button>
+  	</div>
+	</template>
+	
+	<script setup>
+	import { ref } from "vue";
+	import api from "@/api";
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	const orderId = ref("");
+	const amount = ref("");
+	const reason = ref("");
 
-const orderId = ref("");
-const amount = ref("");
-const reason = ref("");
-
-const requestRefund = async () => {
-  await api.post("/refunds/request", {
-    orderId: orderId.value,
-    amount: amount.value,
-    reason: reason.value,
-  });
-};
-</script>
+	const requestRefund = async () => {
+	  await api.post("/refunds/request", {
+ 	   orderId: orderId.value,
+   	 amount: amount.value,
+ 	   reason: reason.value,
+ 	 });
+	};
+	</script>
 Submit Dispute Request (Vue.js)
 vue
  
  
-<template>
-  <div>
-    <h3>Open a Dispute</h3>
-    <input v-model="orderId" placeholder="Order ID" />
-    <input v-model="reason" placeholder="Reason" />
-    <button @click="openDispute">Submit</button>
-  </div>
-</template>
+	<template>
+ 	 <div>
+   	 <h3>Open a Dispute</h3>
+  	  <input v-model="orderId" placeholder="Order ID" />
+ 	   <input v-model="reason" placeholder="Reason" />
+	    <button @click="openDispute">Submit</button>
+	  </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	<script setup>
+	import { ref } from "vue";
+	import api from "@/api";
 
-const orderId = ref("");
-const reason = ref("");
+	const orderId = ref("");
+	const reason = ref("");
 
-const openDispute = async () => {
-  await api.post("/disputes/create", {
-    orderId: orderId.value,
-    reason: reason.value,
-  });
-};
-</script>
+	const openDispute = async () => {
+  	await api.post("/disputes/create", {
+    	orderId: orderId.value,
+    	reason: reason.value,
+  	});
+	};
+	</script>
 
 🚀 Final Steps
 
@@ -1483,31 +1549,31 @@ Refund Entity
 java
  
  
-@Entity
-@Table(name = "refunds")
-@Data
-public class Refund {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private Long orderId;
-    private String userId;
+	@Entity
+	@Table(name = "refunds")
+	@Data
+	public class Refund {
+	    @Id
+	    @GeneratedValue(strategy = GenerationType.IDENTITY)
+	    private Long id;
+ 	   private Long orderId;
+	    private String userId;
     
-    @Enumerated(EnumType.STRING)
-    private RefundStatus refundStatus; // REQUESTED, APPROVED, REJECTED, COMPLETED
-
-    private Double refundAmount;
-    private String reason;
-    private LocalDateTime createdAt;
-}
+  	  @Enumerated(EnumType.STRING)
+  	  private RefundStatus refundStatus; // REQUESTED, APPROVED, REJECTED, COMPLETED
+	
+	    private Double refundAmount;
+  	  private String reason;
+   	 private LocalDateTime createdAt;
+	}
 Refund Status Enum
 
 java
  
  
-public enum RefundStatus {
-    REQUESTED, APPROVED, REJECTED, COMPLETED
-}
+	public enum RefundStatus {
+	    REQUESTED, APPROVED, REJECTED, COMPLETED
+	}
 
 2️⃣ Implement Refund Request API
 
@@ -1516,56 +1582,56 @@ Refund Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class RefundService {
-    private final RefundRepository refundRepository;
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class RefundService {
+   	 private final RefundRepository refundRepository;
+  	  private final OrderRepository orderRepository;
 
-    public Refund requestRefund(Long orderId, String userId, Double amount, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+ 	   public Refund requestRefund(Long orderId, String userId, Double amount, String reason) {
+      	  Order order = orderRepository.findById(orderId)
+       	         .orElseThrow(() -> new RuntimeException("Order Not Found"));
 
-        Refund refund = new Refund();
-        refund.setOrderId(orderId);
-        refund.setUserId(userId);
-        refund.setRefundAmount(amount);
-        refund.setReason(reason);
-        refund.setRefundStatus(RefundStatus.REQUESTED);
-        refund.setCreatedAt(LocalDateTime.now());
+      	  Refund refund = new Refund();
+    	    refund.setOrderId(orderId);
+    	    refund.setUserId(userId);
+    	    refund.setRefundAmount(amount);
+   	     refund.setReason(reason);
+     	   refund.setRefundStatus(RefundStatus.REQUESTED);
+      	  refund.setCreatedAt(LocalDateTime.now());
 
-        return refundRepository.save(refund);
-    }
+     	   return refundRepository.save(refund);
+  	  }
 
-    public Refund updateRefundStatus(Long refundId, RefundStatus status) {
-        Refund refund = refundRepository.findById(refundId)
-                .orElseThrow(() -> new RuntimeException("Refund Not Found"));
-        refund.setRefundStatus(status);
-        return refundRepository.save(refund);
-    }
-}
+  	  public Refund updateRefundStatus(Long refundId, RefundStatus status) {
+      	  Refund refund = refundRepository.findById(refundId)
+        	        .orElseThrow(() -> new RuntimeException("Refund Not Found"));
+      	  refund.setRefundStatus(status);
+     	   return refundRepository.save(refund);
+  	  }
+	}
 Refund Controller
 
 java
  
  
-@RestController
-@RequestMapping("/refunds")
-@RequiredArgsConstructor
-public class RefundController {
-    private final RefundService refundService;
+	@RestController
+	@RequestMapping("/refunds")
+	@RequiredArgsConstructor
+	public class RefundController {
+   	 private final RefundService refundService;
 
-    @PostMapping("/request")
-    public ResponseEntity<Refund> requestRefund(@RequestParam Long orderId, @RequestParam String userId, 
-                                                @RequestParam Double amount, @RequestParam String reason) {
-        return ResponseEntity.ok(refundService.requestRefund(orderId, userId, amount, reason));
-    }
+   	 @PostMapping("/request")
+   	 public ResponseEntity<Refund> requestRefund(@RequestParam Long orderId, @RequestParam String userId, 
+      	                                          @RequestParam Double amount, @RequestParam String reason) {
+       	 return ResponseEntity.ok(refundService.requestRefund(orderId, userId, amount, reason));
+   	 }
 
-    @PutMapping("/{refundId}/update-status")
-    public ResponseEntity<Refund> updateRefundStatus(@PathVariable Long refundId, @RequestParam RefundStatus status) {
-        return ResponseEntity.ok(refundService.updateRefundStatus(refundId, status));
-    }
-}
+ 	   @PutMapping("/{refundId}/update-status")
+   	 public ResponseEntity<Refund> updateRefundStatus(@PathVariable Long refundId, @RequestParam RefundStatus status) {
+    	    return ResponseEntity.ok(refundService.updateRefundStatus(refundId, status));
+    	}
+	}
 
 ✅ Now, users can request refunds and admins can approve/reject them!
 
@@ -1575,85 +1641,89 @@ Dispute Entity
 java
  
  
-@Entity
-@Table(name = "disputes")
-@Data
-public class Dispute {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private Long orderId;
-    private String userId;
+	@Entity
+	@Table(name = "disputes")
+	@Data
+	public class Dispute {
+   	 @Id
+	    @GeneratedValue(strategy = GenerationType.IDENTITY)
+ 	   private Long id;
+  	  private Long orderId;
+  	  private String userId;
     
-    @Enumerated(EnumType.STRING)
-    private DisputeStatus disputeStatus; // OPEN, IN_REVIEW, RESOLVED, REJECTED
+ 	   @Enumerated(EnumType.STRING)
+   	 private DisputeStatus disputeStatus; // OPEN, IN_REVIEW, RESOLVED, REJECTED
 
-    private String reason;
-    private String resolution;
-    private LocalDateTime createdAt;
-}
+    	private String reason;
+   	 private String resolution;
+   	 private LocalDateTime createdAt;
+	}
 Dispute Status Enum
+
 java
+
  
  
-public enum DisputeStatus {
-    OPEN, IN_REVIEW, RESOLVED, REJECTED
-}
+	public enum DisputeStatus {
+  	  OPEN, IN_REVIEW, RESOLVED, REJECTED
+	}
+ 
 Dispute Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class DisputeService {
-    private final DisputeRepository disputeRepository;
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class DisputeService {
+    	private final DisputeRepository disputeRepository;
+    	private final OrderRepository orderRepository;
 
-    public Dispute createDispute(Long orderId, String userId, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+   	 public Dispute createDispute(Long orderId, String userId, String reason) {
+       	 Order order = orderRepository.findById(orderId)
+               	 .orElseThrow(() -> new RuntimeException("Order Not Found"));
 
-        Dispute dispute = new Dispute();
-        dispute.setOrderId(orderId);
-        dispute.setUserId(userId);
-        dispute.setReason(reason);
-        dispute.setDisputeStatus(DisputeStatus.OPEN);
-        dispute.setCreatedAt(LocalDateTime.now());
+        	Dispute dispute = new Dispute();
+        	dispute.setOrderId(orderId);
+        	dispute.setUserId(userId);
+      	  dispute.setReason(reason);
+       	 dispute.setDisputeStatus(DisputeStatus.OPEN);
+       	 dispute.setCreatedAt(LocalDateTime.now());
 
-        return disputeRepository.save(dispute);
-    }
+      	  return disputeRepository.save(dispute);
+    	}
 
-    public Dispute resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
-        Dispute dispute = disputeRepository.findById(disputeId)
-                .orElseThrow(() -> new RuntimeException("Dispute Not Found"));
-        dispute.setDisputeStatus(status);
-        dispute.setResolution(resolution);
-        return disputeRepository.save(dispute);
-    }
-}
+	    public Dispute resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
+       	 Dispute dispute = disputeRepository.findById(disputeId)
+        	        .orElseThrow(() -> new RuntimeException("Dispute Not Found"));
+       	 dispute.setDisputeStatus(status);
+       	 dispute.setResolution(resolution);
+       	 return disputeRepository.save(dispute);
+   	 }
+	}
 Dispute Controller
+
 java
  
  
-@RestController
-@RequestMapping("/disputes")
-@RequiredArgsConstructor
-public class DisputeController {
-    private final DisputeService disputeService;
+	@RestController
+	@RequestMapping("/disputes")
+	@RequiredArgsConstructor
+	public class DisputeController {
+   	 private final DisputeService disputeService;
 
-    @PostMapping("/create")
-    public ResponseEntity<Dispute> createDispute(@RequestParam Long orderId, @RequestParam String userId, 
-                                                 @RequestParam String reason) {
-        return ResponseEntity.ok(disputeService.createDispute(orderId, userId, reason));
-    }
+    	@PostMapping("/create")
+   	 public ResponseEntity<Dispute> createDispute(@RequestParam Long orderId, @RequestParam String userId, 
+            	                                     @RequestParam String reason) {
+      	  return ResponseEntity.ok(disputeService.createDispute(orderId, userId, reason));
+	    }
 
-    @PutMapping("/{disputeId}/resolve")
-    public ResponseEntity<Dispute> resolveDispute(@PathVariable Long disputeId, 
-                                                  @RequestParam DisputeStatus status, 
-                                                  @RequestParam String resolution) {
-        return ResponseEntity.ok(disputeService.resolveDispute(disputeId, status, resolution));
-    }
-}
+   	 @PutMapping("/{disputeId}/resolve")
+	    public ResponseEntity<Dispute> resolveDispute(@PathVariable Long disputeId, 
+      	                                            @RequestParam DisputeStatus status, 
+          	                                        @RequestParam String resolution) {
+      	  return ResponseEntity.ok(disputeService.resolveDispute(disputeId, status, resolution));
+    	}
+	}
 
 ✅ Now, users can create disputes, and admins can review & resolve them!
 
@@ -1662,22 +1732,23 @@ public class DisputeController {
 We’ll notify users when their refund or dispute is processed.
 
 RocketMQ Notification Publisher
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class NotificationPublisher {
-    private final RocketMQTemplate rocketMQTemplate;
+	@Service
+	@RequiredArgsConstructor
+	public class NotificationPublisher {
+ 	   private final RocketMQTemplate rocketMQTemplate;
 
-    public void sendRefundStatusUpdate(Long refundId, String userId, RefundStatus status) {
-        rocketMQTemplate.convertAndSend("refund-status-topic", new NotificationEvent(refundId, userId, status.name()));
-    }
+   		 public void sendRefundStatusUpdate(Long refundId, String userId, RefundStatus status) {
+      	  rocketMQTemplate.convertAndSend("refund-status-topic", new NotificationEvent(refundId, userId, status.name()));
+ 	   }
 
-    public void sendDisputeStatusUpdate(Long disputeId, String userId, DisputeStatus status) {
-        rocketMQTemplate.convertAndSend("dispute-status-topic", new NotificationEvent(disputeId, userId, status.name()));
-    }
-}
+  	  public void sendDisputeStatusUpdate(Long disputeId, String userId, DisputeStatus status) {
+ 	       rocketMQTemplate.convertAndSend("dispute-status-topic", new NotificationEvent(disputeId, userId, status.name()));
+	    }
+	}
 
 ✅ Real-time notifications when refunds or disputes are updated!
 
@@ -1685,62 +1756,65 @@ public class NotificationPublisher {
 5️⃣ Update Frontend for Refunds & Disputes
 
 Submit Refund Request (Vue.js)
+
 vue
  
  
-<template>
-  <div>
-    <h3>Request a Refund</h3>
-    <input v-model="orderId" placeholder="Order ID" />
-    <input v-model="amount" placeholder="Refund Amount" />
-    <input v-model="reason" placeholder="Reason" />
-    <button @click="requestRefund">Submit</button>
-  </div>
-</template>
+	<template>
+	  <div>
+ 	   <h3>Request a Refund</h3>
+ 	   <input v-model="orderId" placeholder="Order ID" />
+ 	   <input v-model="amount" placeholder="Refund Amount" />
+  	  <input v-model="reason" placeholder="Reason" />
+  	  <button @click="requestRefund">Submit</button>
+ 	 </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	<script setup>
+	import { ref } from "vue";
+	import api from "@/api";
 
-const orderId = ref("");
-const amount = ref("");
-const reason = ref("");
-
-const requestRefund = async () => {
-  await api.post("/refunds/request", {
-    orderId: orderId.value,
-    amount: amount.value,
-    reason: reason.value,
-  });
-};
-</script>
+	const orderId = ref("");
+	const amount = ref("");
+	const reason = ref("");
+	
+	const requestRefund = async () => {
+ 		 await api.post("/refunds/request", {
+ 	   orderId: orderId.value,
+ 	   amount: amount.value,
+ 	   reason: reason.value,
+	  });
+	};
+	</script>
+ 
 Submit Dispute Request (Vue.js)
+
 vue
  
  
-<template>
-  <div>
-    <h3>Open a Dispute</h3>
-    <input v-model="orderId" placeholder="Order ID" />
-    <input v-model="reason" placeholder="Reason" />
-    <button @click="openDispute">Submit</button>
-  </div>
-</template>
+	<template>
+	  <div>
+ 	   <h3>Open a Dispute</h3>
+ 	   <input v-model="orderId" placeholder="Order ID" />
+	    <input v-model="reason" placeholder="Reason" />
+	    <button @click="openDispute">Submit</button>
+	  </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	<script setup>
+	import { ref } from "vue";
+	import api from "@/api";
 
-const orderId = ref("");
-const reason = ref("");
+	const orderId = ref("");
+	const reason = ref("");
 
-const openDispute = async () => {
-  await api.post("/disputes/create", {
-    orderId: orderId.value,
-    reason: reason.value,
-  });
-};
-</script>
+	const openDispute = async () => {
+	  await api.post("/disputes/create", {
+  	  orderId: orderId.value,
+  	  reason: reason.value,
+ 	 });
+	};
+	</script>
 
 🚀 Final Steps
 
@@ -1765,30 +1839,37 @@ const openDispute = async () => {
 1️⃣ Configure Mailgun for Email Notifications
 
 Step 1: Create a Mailgun Account
+
 Sign up at Mailgun.
+
 Get your API Key and Domain Name.
+
 Step 2: Add Mailgun Properties in application.yml
+
 yaml
  
  
 mailgun:
-  api-key: YOUR_MAILGUN_API_KEY
-  domain: YOUR_MAILGUN_DOMAIN
-  sender-email: support@yourdomain.com
+
+  	api-key: YOUR_MAILGUN_API_KEY
+ 	 domain: YOUR_MAILGUN_DOMAIN
+ 	 sender-email: support@yourdomain.com
+  
 Step 3: Implement Email Service
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class EmailService {
-    private final RestTemplate restTemplate;
-    @Value("${mailgun.api-key}")
-    private String mailgunApiKey;
-    @Value("${mailgun.domain}")
-    private String mailgunDomain;
-    @Value("${mailgun.sender-email}")
-    private String senderEmail;
+	@Service
+	@RequiredArgsConstructor
+	public class EmailService {
+	    private final RestTemplate restTemplate;
+	    @Value("${mailgun.api-key}")
+	    private String mailgunApiKey;
+	    @Value("${mailgun.domain}")
+	    private String mailgunDomain;
+	    @Value("${mailgun.sender-email}")
+	    private String senderEmail;
 
     public void sendEmail(String to, String subject, String message) {
         String url = "https://api.mailgun.net/v3/" + mailgunDomain + "/messages";
@@ -1803,47 +1884,53 @@ public class EmailService {
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
         restTemplate.postForEntity(url, request, String.class);
-    }
-}
+  	  }
+	}
 
 ✅ Now, emails can be sent using sendEmail()!
 
 2️⃣ Configure Twilio for SMS Notifications
 
 Step 1: Create a Twilio Account
+
 Sign up at Twilio.
+
 Get your Account SID, Auth Token, and Twilio Phone Number.
+
 Step 2: Add Twilio Properties in application.yml
+
 yaml
  
  
-twilio:
-  account-sid: YOUR_TWILIO_ACCOUNT_SID
-  auth-token: YOUR_TWILIO_AUTH_TOKEN
-  phone-number: YOUR_TWILIO_PHONE_NUMBER
+	twilio:
+	  account-sid: YOUR_TWILIO_ACCOUNT_SID
+	  auth-token: YOUR_TWILIO_AUTH_TOKEN
+	  phone-number: YOUR_TWILIO_PHONE_NUMBER
+   
 Step 3: Implement SMS Service
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class SmsService {
-    @Value("${twilio.account-sid}")
-    private String accountSid;
-    @Value("${twilio.auth-token}")
-    private String authToken;
-    @Value("${twilio.phone-number}")
-    private String twilioNumber;
+	@Service
+	@RequiredArgsConstructor
+	public class SmsService {
+ 	   @Value("${twilio.account-sid}")
+	    private String accountSid;
+  	  @Value("${twilio.auth-token}")
+   	 private String authToken;
+   	 @Value("${twilio.phone-number}")
+   	 private String twilioNumber;
 
-    public void sendSms(String to, String message) {
-        Twilio.init(accountSid, authToken);
-        Message.creator(
-            new PhoneNumber(to),
-            new PhoneNumber(twilioNumber),
-            message
-        ).create();
-    }
-}
+  	  public void sendSms(String to, String message) {
+    	    Twilio.init(accountSid, authToken);
+     	   Message.creator(
+     	       new PhoneNumber(to),
+         	   new PhoneNumber(twilioNumber),
+        	    message
+        	).create();
+ 	   }
+	}
 
 ✅ Now, SMS messages can be sent using sendSms()!
 
@@ -1852,40 +1939,40 @@ public class SmsService {
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class NotificationService {
-    private final EmailService emailService;
-    private final SmsService smsService;
+	@Service
+	@RequiredArgsConstructor
+	public class NotificationService {
+	    private final EmailService emailService;
+	    private final SmsService smsService;
 
-    public void sendOrderStatusUpdate(String email, String phone, String orderId, OrderStatus status) {
-        String message = "Your order " + orderId + " is now " + status;
-        emailService.sendEmail(email, "Order Update", message);
-        smsService.sendSms(phone, message);
-    }
+	    public void sendOrderStatusUpdate(String email, String phone, String orderId, OrderStatus status) {
+ 	       String message = "Your order " + orderId + " is now " + status;
+	        emailService.sendEmail(email, "Order Update", message);
+	        smsService.sendSms(phone, message);
+	    }
 
-    public void sendRefundStatusUpdate(String email, String phone, String refundId, RefundStatus status) {
-        String message = "Your refund request " + refundId + " is now " + status;
-        emailService.sendEmail(email, "Refund Update", message);
-        smsService.sendSms(phone, message);
-    }
+ 	   public void sendRefundStatusUpdate(String email, String phone, String refundId, RefundStatus status) {
+     	   String message = "Your refund request " + refundId + " is now " + status;
+     	   emailService.sendEmail(email, "Refund Update", message);
+      	  smsService.sendSms(phone, message);
+   	 }
 
-    public void sendDisputeStatusUpdate(String email, String phone, String disputeId, DisputeStatus status) {
-        String message = "Your dispute " + disputeId + " is now " + status;
-        emailService.sendEmail(email, "Dispute Update", message);
-        smsService.sendSms(phone, message);
-    }
-}
+    	public void sendDisputeStatusUpdate(String email, String phone, String disputeId, DisputeStatus status) {
+      	  String message = "Your dispute " + disputeId + " is now " + status;
+     	   emailService.sendEmail(email, "Dispute Update", message);
+      	  smsService.sendSms(phone, message);
+    	}
+	}
 
 ✅ Now, notifications will be sent via Email & SMS!
 
 4️⃣ Integrate with Order, Refunds & Disputes
 
 Order Status Update Integration
+
 java
  
- 
-public void updateOrderStatus(Long orderId, OrderStatus status) {
+ 	public void updateOrderStatus(Long orderId, OrderStatus status) {
     Order order = orderRepository.findById(orderId)
         .orElseThrow(() -> new RuntimeException("Order Not Found"));
     order.setOrderStatus(status);
@@ -1893,11 +1980,13 @@ public void updateOrderStatus(Long orderId, OrderStatus status) {
 
     notificationService.sendOrderStatusUpdate(order.getUserEmail(), order.getUserPhone(), orderId.toString(), status);
 }
+
 Refund Status Update Integration
+
 java
  
  
-public void updateRefundStatus(Long refundId, RefundStatus status) {
+	public void updateRefundStatus(Long refundId, RefundStatus status) {
     Refund refund = refundRepository.findById(refundId)
         .orElseThrow(() -> new RuntimeException("Refund Not Found"));
     refund.setRefundStatus(status);
@@ -1905,11 +1994,13 @@ public void updateRefundStatus(Long refundId, RefundStatus status) {
 
     notificationService.sendRefundStatusUpdate(refund.getUserEmail(), refund.getUserPhone(), refundId.toString(), status);
 }
+
 Dispute Status Update Integration
+
 java
  
  
-public void resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
+	public void resolveDispute(Long disputeId, DisputeStatus status, String resolution) {
     Dispute dispute = disputeRepository.findById(disputeId)
         .orElseThrow(() -> new RuntimeException("Dispute Not Found"));
     dispute.setDisputeStatus(status);
@@ -1928,33 +2019,33 @@ User Notification Preferences (Vue.js)
 vue
  
  
-<template>
-  <div>
-    <h3>Notification Preferences</h3>
-    <label>
-      <input type="checkbox" v-model="emailNotifications" /> Email Notifications
-    </label>
-    <label>
-      <input type="checkbox" v-model="smsNotifications" /> SMS Notifications
-    </label>
-    <button @click="savePreferences">Save</button>
-  </div>
-</template>
+	<template>
+	  <div>
+   	 <h3>Notification Preferences</h3>
+   	 <label>
+  	    <input type="checkbox" v-model="emailNotifications" /> Email Notifications
+   	 </label>
+  	  <label>
+  	    <input type="checkbox" v-model="smsNotifications" /> SMS Notifications
+ 	   </label>
+ 	   <button @click="savePreferences">Save</button>
+	  </div>
+	</template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+	<script setup>
+		import { ref } from "vue";
+	import api from "@/api";
 
-const emailNotifications = ref(true);
-const smsNotifications = ref(true);
+	const emailNotifications = ref(true);
+	const smsNotifications = ref(true);
 
-const savePreferences = async () => {
-  await api.post("/user/preferences", {
-    emailNotifications: emailNotifications.value,
-    smsNotifications: smsNotifications.value,
-  });
-};
-</script>
+	const savePreferences = async () => {
+	  await api.post("/user/preferences", {
+	    emailNotifications: emailNotifications.value,
+ 	   smsNotifications: smsNotifications.value,
+	  });
+	};
+	</script>
 
 ✅ Users can now enable/disable Email/SMS notifications!
 
@@ -1981,125 +2072,129 @@ Define Order Entity
 java
  
  
-@Entity
-public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String orderNumber;
-    private String userId;
-    private String status; // Processing, Shipped, Delivered, etc.
-    private LocalDateTime orderDate;
-    private LocalDateTime deliveryDate;
-    private String trackingNumber;
-    private String shippingCarrier;
-    private String trackingUrl;
-    // Getters & Setters
-}
+	@Entity
+	public class Order {
+ 	   @Id
+	    @GeneratedValue(strategy = GenerationType.IDENTITY)
+	    private Long id;
+	    private String orderNumber;
+	    private String userId;
+	    private String status; // Processing, Shipped, Delivered, etc.
+	    private LocalDateTime orderDate;
+	    private LocalDateTime deliveryDate;
+	    private String trackingNumber;
+	    private String shippingCarrier;
+	    private String trackingUrl;
+	    // Getters & Setters
+	}
+
 Order Repository
+
 java
  
  
-@Repository
-public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findByUserId(String userId);
-}
+	@Repository
+	public interface OrderRepository extends JpaRepository<Order, Long> {
+ 	   List<Order> findByUserId(String userId);
+	}
 Order Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderService {
-    private final OrderRepository orderRepository;
+	@Service
+	@RequiredArgsConstructor
+	public class OrderService {
+ 	   private final OrderRepository orderRepository;
+	
+ 	   public List<Order> getOrderHistory(String userId) {
+ 	       return orderRepository.findByUserId(userId);
+ 	   }
 
-    public List<Order> getOrderHistory(String userId) {
-        return orderRepository.findByUserId(userId);
-    }
-
-    public Order getOrderTracking(String orderNumber) {
-        return orderRepository.findByOrderNumber(orderNumber)
-            .orElseThrow(() -> new RuntimeException("Order Not Found"));
-    }
-}
+ 	   public Order getOrderTracking(String orderNumber) {
+  	      return orderRepository.findByOrderNumber(orderNumber)
+    	        .orElseThrow(() -> new RuntimeException("Order Not Found"));
+  	  }
+	}
+ 
 Order Controller
+
 java
  
  
-@RestController
-@RequestMapping("/orders")
-@RequiredArgsConstructor
-public class OrderController {
-    private final OrderService orderService;
+	@RestController
+	@RequestMapping("/orders")
+	@RequiredArgsConstructor
+	public class OrderController {
+ 	   private final OrderService orderService;
 
-    @GetMapping("/history/{userId}")
-    public ResponseEntity<List<Order>> getOrderHistory(@PathVariable String userId) {
-        return ResponseEntity.ok(orderService.getOrderHistory(userId));
-    }
+ 	   @GetMapping("/history/{userId}")
+  	  public ResponseEntity<List<Order>> getOrderHistory(@PathVariable String userId) {
+   	     return ResponseEntity.ok(orderService.getOrderHistory(userId));
+ 	   }
 
-    @GetMapping("/track/{orderNumber}")
-    public ResponseEntity<Order> getOrderTracking(@PathVariable String orderNumber) {
-        return ResponseEntity.ok(orderService.getOrderTracking(orderNumber));
-    }
-}
+  	  @GetMapping("/track/{orderNumber}")
+   	 public ResponseEntity<Order> getOrderTracking(@PathVariable String orderNumber) {
+    	    return ResponseEntity.ok(orderService.getOrderTracking(orderNumber));
+ 	   }
+	}
 
 ✅ API Endpoints Ready!
 
-GET /orders/history/{userId} → Fetch Order History
-GET /orders/track/{orderNumber} → Fetch Tracking Details
+	GET /orders/history/{userId} → Fetch Order History
+	GET /orders/track/{orderNumber} → Fetch Tracking Details
 
 2️⃣ Frontend: Order History Page (Vue.js)
 
-Order History Page
-vue
+	Order History Page
+	vue
  
  
-<template>
-  <div class="order-history">
-    <h2>Order History</h2>
-    <div v-if="orders.length === 0">No orders found.</div>
-    <div v-for="order in orders" :key="order.id" class="order-card">
-      <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
-      <p><strong>Date:</strong> {{ formatDate(order.orderDate) }}</p>
-      <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
-      <button @click="viewTracking(order.orderNumber)">Track Order</button>
-    </div>
-  </div>
-</template>
+	<template>
+  	<div class="order-history">
+   	 <h2>Order History</h2>
+   	 <div v-if="orders.length === 0">No orders found.</div>
+   	 <div v-for="order in orders" :key="order.id" class="order-card">
+    	  <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
+    	  <p><strong>Date:</strong> {{ formatDate(order.orderDate) }}</p>
+    	  <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
+     	 <button @click="viewTracking(order.orderNumber)">Track Order</button>
+    	</div>
+  	</div>
+	</template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import api from "@/api";
-import { useRouter } from "vue-router";
+	<script setup>
+	import { ref, onMounted } from "vue";
+	import api from "@/api";
+	import { useRouter } from "vue-router";
 
-const orders = ref([]);
-const router = useRouter();
+	const orders = ref([]);
+	const router = useRouter();
 
-onMounted(async () => {
-  const userId = localStorage.getItem("userId");
-  const response = await api.get(`/orders/history/${userId}`);
-  orders.value = response.data;
-});
+	onMounted(async () => {
+  	const userId = localStorage.getItem("userId");
+  	const response = await api.get(`/orders/history/${userId}`);
+  	orders.value = response.data;
+	});
 
-const viewTracking = (orderNumber) => {
-  router.push(`/order-tracking/${orderNumber}`);
-};
+	const viewTracking = (orderNumber) => {
+ 	 router.push(`/order-tracking/${orderNumber}`);
+	};
 
-const formatDate = (date) => new Date(date).toLocaleDateString();
-const statusClass = (status) => status.toLowerCase().replace(" ", "-");
-</script>
+	const formatDate = (date) => new Date(date).toLocaleDateString();
+	const statusClass = (status) => status.toLowerCase().replace(" ", "-");
+	</script>
 
-<style scoped>
-.order-card {
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 5px;
-}
-.processing { color: orange; }
-.shipped { color: blue; }
-.delivered { color: green; }
-</style>
+	<style scoped>
+	.order-card {
+  	border: 1px solid #ccc;
+  	padding: 10px;
+ 	 margin-bottom: 10px;
+  	border-radius: 5px;
+	}
+	.processing { color: orange; }
+	.shipped { color: blue; }
+	.delivered { color: green; }
+	</style>
 
 ✅ Users can now see their order history!
 
@@ -2107,45 +2202,45 @@ const statusClass = (status) => status.toLowerCase().replace(" ", "-");
 
 vue
 
-<template>
-  <div class="order-tracking">
-    <h2>Order Tracking</h2>
-    <div v-if="order">
-      <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
-      <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
-      <p><strong>Tracking Number:</strong> {{ order.trackingNumber }}</p>
-      <p><strong>Shipping Carrier:</strong> {{ order.shippingCarrier }}</p>
-      <a :href="order.trackingUrl" target="_blank">Track on Carrier Website</a>
-    </div>
-    <div v-else>Loading...</div>
-  </div>
-</template>
+	<template>
+	  <div class="order-tracking">
+ 	   <h2>Order Tracking</h2>
+   	 <div v-if="order">
+    	  <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
+    	  <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
+    	  <p><strong>Tracking Number:</strong> {{ order.trackingNumber }}</p>
+     	 <p><strong>Shipping Carrier:</strong> {{ order.shippingCarrier }}</p>
+     		 <a :href="order.trackingUrl" target="_blank">Track on Carrier Website</a>
+   	 </div>
+    	<div v-else>Loading...</div>
+  	</div>
+	</template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import api from "@/api";
+	<script setup>
+	import { ref, onMounted } from "vue";
+	import { useRoute } from "vue-router";
+	import api from "@/api";
 
-const route = useRoute();
-const order = ref(null);
+	const route = useRoute();
+	const order = ref(null);
 
-onMounted(async () => {
-  const response = await api.get(`/orders/track/${route.params.orderNumber}`);
-  order.value = response.data;
-});
+	onMounted(async () => {
+ 	 const response = await api.get(`/orders/track/${route.params.orderNumber}`);
+ 	 order.value = response.data;
+	});
 
-const statusClass = (status) => status.toLowerCase().replace(" ", "-");
-</script>
+	const statusClass = (status) => status.toLowerCase().replace(" ", "-");
+	</script>
 
-<style scoped>
-.order-tracking {
-  padding: 20px;
-}
-a {
-  color: blue;
-  text-decoration: underline;
-}
-</style>
+	<style scoped>
+	.order-tracking {
+ 	 padding: 20px;
+	}
+	a {
+  	color: blue;
+  	text-decoration: underline;
+	}
+	</style>
 
 ✅ Users can now track their orders!
 
@@ -2189,6 +2284,7 @@ public class Order {
     private String trackingUrl;
     private LocalDateTime lastUpdated;
 }
+
 Order Status Update API
 java
  
