@@ -832,7 +832,8 @@ java
   	  private Double totalAmount;
   	  private String trackingNumber;
 	}
-	Step 2: Create OrderTrackingService
+
+Step 2: Create OrderTrackingService
 
 java
  
