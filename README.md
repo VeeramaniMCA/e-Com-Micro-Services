@@ -16,7 +16,7 @@ Microservices-based e-commerce application using:
 
 ✅ Vue.js (Frontend)
 
-Microservices Overview
+**Microservices Overview**
 
 1️⃣ User Service - Handles User Registration, Authentication (JWT/OAuth2), Profile Management
 
@@ -40,37 +40,19 @@ Then, I'll integrate Elasticsearch for search, Redis (Jedis) for caching, and Ro
 We will create the following Spring Boot microservices:
 
                 	                                            
-
-**Service Name**	 : User Service	              
-
-**Description Manages**  : users, authentication, JWT/OAuth2	                  
-
-**Technologies Used**  : Spring Security, Nacos, Redis (Jedis)
-
-**Service Name**    : Product Service	            
-
-**Description Manages**  : Manages product catalog, Elasticsearch search	
-
-**Technologies Used**   : Spring Boot, Elasticsearch, Redis
-
-**Service Name**    : Order Service	         
-
-**Description Manages**  : Handles orders, Seata for distributed transactions	  
-
-**Technologies Used**   : Spring Boot, Seata, RocketMQ
-
-**Service Name**    : Payment Service	   
-
-**Description Manages** Processes payments, integrates with order service	  
-
-**Technologies Used**   : Spring Boot, Seata, RocketMQ
-
-**Service Name**    : Notification Service       
-
-**Description Manages**  : Sends emails, SMS notifications	 
-
-**Technologies Used**   : Spring Boot, RocketMQ
-
+        ------------------------------------------------------------------------------------------------------------------------------ 
+        **Service Name**	        **Description Manages**                                      **Technologies Used**
+        ------------------------------------------------------------------------------------------------------------------------------   
+        User Service	         users, authentication, JWT/OAuth2                            Spring Security, Nacos, Redis (Jedis)
+        ------------------------------------------------------------------------------------------------------------------------------  
+        Product Service	     Manages product catalog, Elasticsearch search                    Spring Boot, Elasticsearch, Redis    
+        ------------------------------------------------------------------------------------------------------------------------------  
+        Order Service	      Handles orders, Seata for distributed transactions              Spring Boot, Seata, RocketMQ
+        ------------------------------------------------------------------------------------------------------------------------------  
+        Payment Service	         Processes payments, integrates with order service	      Spring Boot, Seata, RocketMQ
+        ------------------------------------------------------------------------------------------------------------------------------  
+        Notification Service             Sends emails, SMS notifications	                 Spring Boot, RocketMQ
+        ------------------------------------------------------------------------------------------------------------------------------  
 
 1️⃣ Setup Common Dependencies in pom.xml
 
@@ -2271,105 +2253,111 @@ Modify the Order entity to include tracking info:
 
 java
 
-@Entity
-public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String orderNumber;
-    private String userId;
-    private String status; // Processing, Shipped, Delivered, etc.
-    private String trackingNumber;
-    private String carrier;
-    private String trackingUrl;
-    private LocalDateTime lastUpdated;
-}
+        @Entity
+        public class Order {
+            @Id
+            @GeneratedValue(strategy = GenerationType.IDENTITY)
+            private Long id;
+            private String orderNumber;
+            private String userId;
+            private String status; // Processing, Shipped, Delivered, etc.
+            private String trackingNumber;
+            private String carrier;
+            private String trackingUrl;
+            private LocalDateTime lastUpdated;
+        }
 
 Order Status Update API
+
 java
  
  
-@RestController
-@RequestMapping("/orders")
-@RequiredArgsConstructor
-public class OrderController {
-    private final OrderService orderService;
-    private final RocketMQTemplate rocketMQTemplate;
+        @RestController
+        @RequestMapping("/orders")
+        @RequiredArgsConstructor
+        public class OrderController {
+            private final OrderService orderService;
+            private final RocketMQTemplate rocketMQTemplate;
 
-    @PostMapping("/update-status")
-    public ResponseEntity<String> updateOrderStatus(@RequestBody OrderStatusUpdateRequest request) {
-        orderService.updateOrderStatus(request);
-        rocketMQTemplate.convertAndSend("order-status-topic", request); // Send notification event
-        return ResponseEntity.ok("Order status updated and notification sent");
-    }
-}
+            @PostMapping("/update-status")
+            public ResponseEntity<String> updateOrderStatus(@RequestBody OrderStatusUpdateRequest request) {
+                orderService.updateOrderStatus(request);
+                rocketMQTemplate.convertAndSend("order-status-topic", request); // Send notification event
+                return ResponseEntity.ok("Order status updated and notification sent");
+            }
+        }
+        
 Service to Handle Updates
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class OrderService {
-    private final OrderRepository orderRepository;
+        @Service
+        @RequiredArgsConstructor
+        public class OrderService {
+            private final OrderRepository orderRepository;
 
-    public void updateOrderStatus(OrderStatusUpdateRequest request) {
-        Order order = orderRepository.findByOrderNumber(request.getOrderNumber())
-            .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setStatus(request.getStatus());
-        order.setTrackingNumber(request.getTrackingNumber());
-        order.setTrackingUrl(request.getTrackingUrl());
-        order.setLastUpdated(LocalDateTime.now());
-        orderRepository.save(order);
-    }
-}
+            public void updateOrderStatus(OrderStatusUpdateRequest request) {
+                Order order = orderRepository.findByOrderNumber(request.getOrderNumber())
+                    .orElseThrow(() -> new RuntimeException("Order not found"));
+                order.setStatus(request.getStatus());
+                order.setTrackingNumber(request.getTrackingNumber());
+                order.setTrackingUrl(request.getTrackingUrl());
+                order.setLastUpdated(LocalDateTime.now());
+                orderRepository.save(order);
+            }
+        }
 
 ✅ Now orders can be updated with tracking info!
 
 2️⃣ Add Real-time Notifications (RocketMQ)
 
 RocketMQ Listener for Order Status Updates
+
 java
  
  
-@Component
-@RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-status-group")
-public class OrderStatusListener {
-    private final NotificationService notificationService;
+        @Component
+        @RocketMQMessageListener(topic = "order-status-topic", consumerGroup = "order-status-group")
+        public class OrderStatusListener {
+            private final NotificationService notificationService;
 
-    @Override
-    public void onMessage(OrderStatusUpdateRequest request) {
-        notificationService.sendNotification(request);
-    }
-}
+            @Override
+            public void onMessage(OrderStatusUpdateRequest request) {
+                notificationService.sendNotification(request);
+            }
+        }
 Notification Service
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class NotificationService {
-    private final EmailService emailService;
-    private final SmsService smsService;
+        @Service
+        @RequiredArgsConstructor
+        public class NotificationService {
+            private final EmailService emailService;
+            private final SmsService smsService;
 
-    public void sendNotification(OrderStatusUpdateRequest request) {
-        String message = "Your order " + request.getOrderNumber() + " is now " + request.getStatus();
-        emailService.sendEmail(request.getUserEmail(), "Order Status Update", message);
-        smsService.sendSms(request.getUserPhone(), message);
-    }
-}
+            public void sendNotification(OrderStatusUpdateRequest request) {
+                String message = "Your order " + request.getOrderNumber() + " is now " + request.getStatus();
+                emailService.sendEmail(request.getUserEmail(), "Order Status Update", message);
+                smsService.sendSms(request.getUserPhone(), message);
+            }
+        }
 
 ✅ RocketMQ now sends real-time updates!
 
 3️⃣ Implement Email/SMS Notifications
 
 Email Service (Mailgun)
+
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class EmailService {
-    public void sendEmail(String to, String subject, String message) {
+        @Service
+        @RequiredArgsConstructor
+        public class EmailService {
+            public void sendEmail(String to, String subject, String message) {
         RestTemplate restTemplate = new RestTemplate();
         String mailgunApiUrl = "https://api.mailgun.net/v3/YOUR_DOMAIN/messages";
 
@@ -2384,20 +2372,20 @@ public class EmailService {
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
         restTemplate.postForEntity(mailgunApiUrl, request, String.class);
-    }
-}
+            }
+        }
 SMS Service (Twilio)
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class SmsService {
-    public void sendSms(String to, String message) {
-        Twilio.init("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN");
-        Message.creator(new PhoneNumber(to), new PhoneNumber("YOUR_TWILIO_NUMBER"), message).create();
-    }
-}
+        @Service
+        @RequiredArgsConstructor
+        public class SmsService {
+            public void sendSms(String to, String message) {
+                Twilio.init("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN");
+                Message.creator(new PhoneNumber(to), new PhoneNumber("YOUR_TWILIO_NUMBER"), message).create();
+            }
+        }
 
 ✅ Users receive Email & SMS notifications on order updates!
 
@@ -2407,45 +2395,45 @@ Order Tracking Page
 vue
  
  
-<template>
-  <div class="order-tracking">
-    <h2>Track Your Order</h2>
-    <div v-if="order">
-      <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
-      <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
-      <p><strong>Tracking Number:</strong> {{ order.trackingNumber }}</p>
-      <p><strong>Carrier:</strong> {{ order.carrier }}</p>
-      <a :href="order.trackingUrl" target="_blank">Track on Carrier Website</a>
-    </div>
-    <div v-else>Loading...</div>
-  </div>
-</template>
+        <template>
+          <div class="order-tracking">
+            <h2>Track Your Order</h2>
+            <div v-if="order">
+              <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
+              <p><strong>Status:</strong> <span :class="statusClass(order.status)">{{ order.status }}</span></p>
+              <p><strong>Tracking Number:</strong> {{ order.trackingNumber }}</p>
+              <p><strong>Carrier:</strong> {{ order.carrier }}</p>
+              <a :href="order.trackingUrl" target="_blank">Track on Carrier Website</a>
+            </div>
+            <div v-else>Loading...</div>
+          </div>
+        </template>
 
-<script setup>
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import api from "@/api";
+        <script setup>
+        import { ref, onMounted } from "vue";
+        import { useRoute } from "vue-router";
+        import api from "@/api";
 
-const route = useRoute();
-const order = ref(null);
+        const route = useRoute();
+        const order = ref(null);
 
-onMounted(async () => {
-  const response = await api.get(`/orders/track/${route.params.orderNumber}`);
-  order.value = response.data;
-});
+        onMounted(async () => {
+          const response = await api.get(`/orders/track/${route.params.orderNumber}`);
+          order.value = response.data;
+        });
 
-const statusClass = (status) => status.toLowerCase().replace(" ", "-");
-</script>
+        const statusClass = (status) => status.toLowerCase().replace(" ", "-");
+        </script>
 
-<style scoped>
-.order-tracking {
-  padding: 20px;
-}
-a {
-  color: blue;
-  text-decoration: underline;
-}
-</style>
+        <style scoped>
+        .order-tracking {
+          padding: 20px;
+        }
+        a {
+          color: blue;
+          text-decoration: underline;
+        }
+        </style>
 
 ✅ Users can now track their orders in the UI!
 
@@ -2479,10 +2467,10 @@ Refund Entity
 java
  
  
-@Entity
-public class Refund {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+        @Entity
+        public class Refund {
+            @Id
+            @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String orderNumber;
     private String userId;
@@ -2496,8 +2484,8 @@ Dispute Entity
 java
  
  
-@Entity
-public class Dispute {
+        @Entity
+        public class Dispute {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -2506,7 +2494,7 @@ public class Dispute {
     private String issueDescription;
     private String status; // OPEN, IN_REVIEW, RESOLVED
     private LocalDateTime createdAt;
-}
+        }
 
 ✅ Database now supports Refund & Dispute tracking!
 
@@ -2516,11 +2504,11 @@ Refund Request API
 java
  
  
-@RestController
-@RequestMapping("/refunds")
-@RequiredArgsConstructor
-public class RefundController {
-    private final RefundService refundService;
+        @RestController
+        @RequestMapping("/refunds")
+        @RequiredArgsConstructor
+        public class RefundController {
+            private final RefundService refundService;
 
     @PostMapping("/request")
     public ResponseEntity<String> requestRefund(@RequestBody RefundRequest request) {
@@ -2532,9 +2520,9 @@ Refund Processing Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class RefundService {
+        @Service
+        @RequiredArgsConstructor
+        public class RefundService {
     private final RefundRepository refundRepository;
     private final PaymentService paymentService;
     private final NotificationService notificationService;
@@ -2561,7 +2549,7 @@ public class RefundService {
         paymentService.processRefund(refund);
         notificationService.sendNotification(refund.getUserId(), "Your refund has been approved!");
     }
-}
+        }
 
 ✅ Refund requests are now processed & approved!
 
@@ -2571,10 +2559,10 @@ Dispute Submission API
 java
  
  
-@RestController
-@RequestMapping("/disputes")
-@RequiredArgsConstructor
-public class DisputeController {
+        @RestController
+        @RequestMapping("/disputes")
+        @RequiredArgsConstructor
+        public class DisputeController {
     private final DisputeService disputeService;
 
     @PostMapping("/submit")
@@ -2582,14 +2570,15 @@ public class DisputeController {
         disputeService.submitDispute(request);
         return ResponseEntity.ok("Dispute submitted for review");
     }
-}
+        }
+        
 Dispute Resolution Service
 java
  
  
-@Service
-@RequiredArgsConstructor
-public class DisputeService {
+        @Service
+        @RequiredArgsConstructor
+        public class DisputeService {
     private final DisputeRepository disputeRepository;
     private final NotificationService notificationService;
 
@@ -2618,12 +2607,13 @@ public class DisputeService {
 4️⃣ Integrate with Payment Gateway for Refunds
 
 Refund Payment via Stripe
+
 java
  
  
-@Service
-public class PaymentService {
-    public void processRefund(Refund refund) {
+        @Service
+        public class PaymentService {
+            public void processRefund(Refund refund) {
         Stripe.apiKey = "sk_test_your_api_key";
 
         try {
@@ -2648,8 +2638,8 @@ Send Refund Status Notification
 java
  
  
-@Service
-public class NotificationService {
+        @Service
+        public class NotificationService {
     public void sendNotification(String userId, String message) {
         // Fetch user contact details
         String userEmail = getUserEmail(userId);
@@ -2668,72 +2658,74 @@ Refund Request Page
 vue
  
  
-<template>
-  <div>
-    <h2>Request a Refund</h2>
-    <form @submit.prevent="submitRefund">
-      <label>Order Number:</label>
-      <input v-model="refund.orderNumber" required />
+        <template>
+          <div>
+            <h2>Request a Refund</h2>
+            <form @submit.prevent="submitRefund">
+              <label>Order Number:</label>
+              <input v-model="refund.orderNumber" required />
 
-      <label>Amount:</label>
-      <input v-model="refund.amount" type="number" required />
+              <label>Amount:</label>
+              <input v-model="refund.amount" type="number" required />
 
-      <label>Reason:</label>
-      <textarea v-model="refund.reason" required></textarea>
+              <label>Reason:</label>
+              <textarea v-model="refund.reason" required></textarea>
 
-      <button type="submit">Submit</button>
-    </form>
-  </div>
-</template>
+              <button type="submit">Submit</button>
+            </form>
+          </div>
+        </template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+        <script setup>
+        import { ref } from "vue";
+        import api from "@/api";
 
-const refund = ref({
-  orderNumber: "",
-  amount: 0,
-  reason: "",
-});
+        const refund = ref({
+          orderNumber: "",
+          amount: 0,
+          reason: "",
+        });
 
-const submitRefund = async () => {
-  await api.post("/refunds/request", refund.value);
-  alert("Refund request submitted");
-};
-</script>
+        const submitRefund = async () => {
+          await api.post("/refunds/request", refund.value);
+          alert("Refund request submitted");
+        };
+        </script>
+        
 Dispute Submission Page
 vue
  
  
-<template>
-  <div>
-    <h2>Open a Dispute</h2>
-    <form @submit.prevent="submitDispute">
-      <label>Order Number:</label>
-      <input v-model="dispute.orderNumber" required />
+        <template>
+          <div>
+            <h2>Open a Dispute</h2>
+            <form @submit.prevent="submitDispute">
+              <label>Order Number:</label>
+              <input v-model="dispute.orderNumber" required />
 
-      <label>Issue Description:</label>
-      <textarea v-model="dispute.issueDescription" required></textarea>
+              <label>Issue Description:</label>
+              <textarea v-model="dispute.issueDescription" required></textarea>
 
-      <button type="submit">Submit</button>
-    </form>
-  </div>
-</template>
+              <button type="submit">Submit</button>
+            </form>
+          </div>
+        </template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+        <script setup>
+        import { ref } from "vue";
+        import api from "@/api";
 
-const dispute = ref({
-  orderNumber: "",
-  issueDescription: "",
-});
+        const dispute = ref({
+          orderNumber: "",
+          issueDescription: "",
+        });
 
-const submitDispute = async () => {
-  await api.post("/disputes/submit", dispute.value);
-  alert("Dispute submitted");
-};
-</script>
+        const submitDispute = async () => {
+          await api.post("/disputes/submit", dispute.value);
+          alert("Dispute submitted");
+        };
+        </script>
+
 
 ✅ Users can now submit refunds & disputes easily!
 
@@ -2780,14 +2772,14 @@ Stripe Refund Service
 java
  
  
-import com.stripe.Stripe;
-import com.stripe.model.Refund;
-import com.stripe.param.RefundCreateParams;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+        import com.stripe.Stripe;
+        import com.stripe.model.Refund;
+        import com.stripe.param.RefundCreateParams;
+        import org.springframework.beans.factory.annotation.Value;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class StripePaymentService {
+        @Service
+        public class StripePaymentService {
 
     @Value("${payment.stripe.secret-key}")
     private String stripeSecretKey;
@@ -2814,18 +2806,19 @@ public class StripePaymentService {
 3️⃣ Implement PayPal Refund API
 
 PayPal Refund Service
+
 java
  
  
-import com.paypal.base.rest.APIContext;
-import com.paypal.base.rest.PayPalRESTException;
-import com.paypal.api.payments.RefundRequest;
-import com.paypal.api.payments.Sale;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+        import com.paypal.base.rest.APIContext;
+        import com.paypal.base.rest.PayPalRESTException;
+        import com.paypal.api.payments.RefundRequest;
+        import com.paypal.api.payments.Sale;
+        import org.springframework.beans.factory.annotation.Value;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class PayPalPaymentService {
+        @Service
+        public class PayPalPaymentService {
 
     @Value("${payment.paypal.client-id}")
     private String clientId;
@@ -2855,13 +2848,14 @@ public class PayPalPaymentService {
 4️⃣ Connect Refund APIs to Order & Refund Microservices
 
 Refund API Controller
+
 java
  
  
-@RestController
-@RequestMapping("/payments")
-@RequiredArgsConstructor
-public class PaymentController {
+        @RestController
+        @RequestMapping("/payments")
+        @RequiredArgsConstructor
+        public class PaymentController {
     private final StripePaymentService stripePaymentService;
     private final PayPalPaymentService payPalPaymentService;
 
@@ -2887,36 +2881,36 @@ Refund Button on Order Page
 vue
  
  
-<template>
-  <div>
-    <h2>Order Details</h2>
-    <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
-    <p><strong>Status:</strong> {{ order.status }}</p>
-    <p><strong>Amount:</strong> ${{ order.amount }}</p>
-    <button v-if="order.status === 'Completed'" @click="requestRefund">Request Refund</button>
-  </div>
-</template>
+        <template>
+          <div>
+            <h2>Order Details</h2>
+            <p><strong>Order #:</strong> {{ order.orderNumber }}</p>
+            <p><strong>Status:</strong> {{ order.status }}</p>
+            <p><strong>Amount:</strong> ${{ order.amount }}</p>
+            <button v-if="order.status === 'Completed'" @click="requestRefund">Request Refund</button>
+          </div>
+        </template>
 
-<script setup>
-import { ref } from "vue";
-import api from "@/api";
+        <script setup>
+        import { ref } from "vue";
+        import api from "@/api";
 
-const order = ref({
-  orderNumber: "ORD12345",
-  status: "Completed",
-  amount: 100.00,
-});
+        const order = ref({
+          orderNumber: "ORD12345",
+          status: "Completed",
+          amount: 100.00,
+        });
 
-const requestRefund = async () => {
-  const response = await api.post("/payments/refund", {
-    transactionId: "ch_1ABCDEF12345",
-    amount: order.value.amount * 100, // Convert to cents
-    currency: "USD",
-    paymentGateway: "stripe", // or "paypal"
-  });
-  alert(response.data);
-};
-</script>
+        const requestRefund = async () => {
+          const response = await api.post("/payments/refund", {
+            transactionId: "ch_1ABCDEF12345",
+            amount: order.value.amount * 100, // Convert to cents
+            currency: "USD",
+            paymentGateway: "stripe", // or "paypal"
+          });
+          alert(response.data);
+        };
+        </script>
 
 ✅ Users can now request refunds from the UI!
 
@@ -2948,13 +2942,14 @@ Check if it's installed using:
 sh
  
  
-kubectl get deployment metrics-server -n kube-system
+        kubectl get deployment metrics-server -n kube-system
+        
 If not installed, deploy it:
 
 sh
  
  
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
 ✅ Metrics Server Installed!
 
@@ -2965,32 +2960,32 @@ Modify your Spring Boot microservices Deployment YAML (deployment.yaml):
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: order-service
-  template:
-    metadata:
-      labels:
-        app: order-service
-    spec:
-      containers:
-      - name: order-service
-        image: myrepo/order-service:latest
-        ports:
-        - containerPort: 8080
-        resources:
-          requests:
-            cpu: "250m"
-            memory: "512Mi"
-          limits:
-            cpu: "500m"
-            memory: "1Gi"
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: order-service
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: order-service
+          template:
+            metadata:
+              labels:
+                app: order-service
+            spec:
+              containers:
+              - name: order-service
+                image: myrepo/order-service:latest
+                ports:
+                - containerPort: 8080
+                resources:
+                  requests:
+                    cpu: "250m"
+                    memory: "512Mi"
+                  limits:
+                    cpu: "500m"
+                    memory: "1Gi"
             
 ✅ Defined CPU & Memory Requests for Scaling!
 
@@ -3001,30 +2996,31 @@ Apply an HPA policy to scale pods based on CPU utilization:
 yaml
  
  
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: order-service-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: order-service
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
+        apiVersion: autoscaling/v2
+        kind: HorizontalPodAutoscaler
+        metadata:
+          name: order-service-hpa
+        spec:
+          scaleTargetRef:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: order-service
+          minReplicas: 2
+          maxReplicas: 10
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+                
 Apply the HPA:
 
 sh
  
  
-kubectl apply -f hpa.yaml
+        kubectl apply -f hpa.yaml
 
 ✅ Auto-scaling enabled for order-service!
 
@@ -3035,20 +3031,22 @@ Run a load test using kubectl:
 sh
  
  
-kubectl run load-generator --image=busybox -- /bin/sh -c "while true; do wget -q -O- http://order-service.default.svc.cluster.local:8080; done"
+        kubectl run load-generator --image=busybox -- /bin/sh -c "while true; do wget -q -O- http://order-service.default.svc.cluster.local:8080; done"
+
 Then check HPA status:
 
 sh
  
  
-kubectl get hpa
+        kubectl get hpa
+
 You should see scaling activity like:
 
 pgsql
  
  
-NAME               REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS
-order-service-hpa  Deployment/order-service   70%/50%    2         10        5
+        NAME               REFERENCE                                  TARGETS           MINPODS           MAXPODS           REPLICAS
+        order-service-hpa  Deployment/order-service                   70%/50%            2                 10                5
 
 ✅ HPA is dynamically scaling pods under load!
 
@@ -3077,24 +3075,24 @@ Modify your HPA configuration (hpa.yaml) to include memory-based scaling:
 yaml
  
  
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: order-service-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: order-service
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 70  # Scale when memory usage exceeds 70%
+        apiVersion: autoscaling/v2
+        kind: HorizontalPodAutoscaler
+        metadata:
+          name: order-service-hpa
+        spec:
+          scaleTargetRef:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: order-service
+          minReplicas: 2
+          maxReplicas: 10
+          metrics:
+          - type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 70  # Scale when memory usage exceeds 70%
     
 ✅ Memory-based scaling is now configured!
 
@@ -3105,38 +3103,41 @@ Apply the new HPA policy to Kubernetes:
 sh
  
  
-kubectl apply -f hpa.yaml
+        kubectl apply -f hpa.yaml
+        
 Then check if HPA is applied correctly:
 
 sh
  
  
-kubectl get hpa
-Example output:
+        kubectl get hpa
+        Example output:
 
 pgsql
  
  
-NAME               REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS
-order-service-hpa  Deployment/order-service   75%/70%   2        10        5
+        NAME               REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS
+        order-service-hpa  Deployment/order-service   75%/70%   2        10        5
 
 ✅ HPA is now monitoring memory usage!
 
 3️⃣ Test Memory-Based Auto-Scaling
 
 Simulate High Memory Load
+
 Run a memory-intensive process inside a pod:
 
 sh
  
  
-kubectl run memory-load --image=busybox -- sh -c "dd if=/dev/zero of=/dev/null bs=1M"
+        kubectl run memory-load --image=busybox -- sh -c "dd if=/dev/zero of=/dev/null bs=1M"
+        
 Then check HPA status:
 
 sh
  
  
-kubectl get hpa
+        kubectl get hpa
 
 If memory usage is high, Kubernetes will scale up the number of pods dynamically! 🎉
 
@@ -3164,15 +3165,16 @@ KEDA is deployed as a Helm chart. Run the following commands to install it:
 sh
  
  
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm install keda kedacore/keda --namespace keda --create-namespace
+        helm repo add kedacore https://kedacore.github.io/charts
+        helm repo update
+        helm install keda kedacore/keda --namespace keda --create-namespace
+        
 Check if KEDA is running:
 
 sh
  
  
-kubectl get pods -n keda
+        kubectl get pods -n keda
 
 ✅ KEDA is now installed in Kubernetes!
 
@@ -3181,70 +3183,77 @@ kubectl get pods -n keda
 We will configure KEDA to auto-scale pods based on RocketMQ message queue depth.
 
 Create a ScaledObject for RocketMQ
+
 Save the following YAML as keda-rocketmq-scaledobject.yaml:
 
 yaml
  
  
-apiVersion: keda.sh/v1alpha1
-kind: ScaledObject
-metadata:
-  name: order-service-keda
-  namespace: default
-spec:
-  scaleTargetRef:
-    name: order-service
-  minReplicaCount: 1
-  maxReplicaCount: 10
-  triggers:
-    - type: rocketmq
-      metadata:
-        name: order-queue
-        namespace: default
-        consumerGroup: order-consumers
-        minOffset: "100"
-        autoCommit: "true"
-        broker: "rocketmq-broker:9876"
+        apiVersion: keda.sh/v1alpha1
+        kind: ScaledObject
+        metadata:
+          name: order-service-keda
+          namespace: default
+        spec:
+          scaleTargetRef:
+            name: order-service
+          minReplicaCount: 1
+          maxReplicaCount: 10
+          triggers:
+            - type: rocketmq
+              metadata:
+                name: order-queue
+                namespace: default
+                consumerGroup: order-consumers
+                minOffset: "100"
+                autoCommit: "true"
+                broker: "rocketmq-broker:9876"
+
 Apply the ScaledObject to Kubernetes:
 
 sh
  
  
-kubectl apply -f keda-rocketmq-scaledobject.yaml
+        kubectl apply -f keda-rocketmq-scaledobject.yaml
 
 ✅ Now, pods will scale dynamically based on RocketMQ message queue depth!
 
 3️⃣ Apply & Test Event-Driven Scaling
 
 Check KEDA Metrics
+
 Run:
 
 sh
  
  
-kubectl get hpa
-You should see something like this:
+        kubectl get hpa
+        You should see something like this:
 
 pgsql
  
  
-NAME                   REFERENCE               TARGETS   MINPODS   MAXPODS   REPLICAS
-order-service-keda     Deployment/order-service  150/100   1        10        5
+        NAME                   REFERENCE               TARGETS   MINPODS   MAXPODS   REPLICAS
+        order-service-keda     Deployment/order-service  150/100   1        10        5
+
 Simulate a High Message Load
+
 Push a large number of messages into RocketMQ to trigger scaling:
 
 sh
  
  
-for i in {1..500}; do
-    echo "New Order $i" | rocketmq-producer -t order-queue -n rocketmq-broker:9876
-done
+        for i in {1..500}; do
+            echo "New Order $i" | rocketmq-producer -t order-queue -n rocketmq-broker:9876
+        done
+        
 Now check the number of pods:
 
 sh
  
  
-kubectl get pods
+        kubectl get pods
+        
 You should see more pods spinning up 🚀!
 
 ✅ KEDA is dynamically scaling based on RocketMQ message events!
@@ -3272,7 +3281,7 @@ Run the following command to install motion for Vue:
 sh
  
  
-npm install @vueuse/motion
+        npm install @vueuse/motion
 
 ✅ Framer Motion is now installed!
 
@@ -3283,32 +3292,32 @@ In your Vue 3 component (OrderTracking.vue), import and use motion:
 vue
  
  
-<script setup>
-import { useMotion } from "@vueuse/motion";
-import { ref } from "vue";
+        <script setup>
+        import { useMotion } from "@vueuse/motion";
+        import { ref } from "vue";
 
-const card = ref(null);
-useMotion(card, {
-  initial: { opacity: 0, y: 20 },
-  enter: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-});
-</script>
+        const card = ref(null);
+        useMotion(card, {
+          initial: { opacity: 0, y: 20 },
+          enter: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+        });
+        </script>
 
-<template>
-  <div ref="card" class="order-card">
-    <h2>Order #1234</h2>
-    <p>Status: Shipped 🚚</p>
-  </div>
-</template>
+        <template>
+          <div ref="card" class="order-card">
+            <h2>Order #1234</h2>
+            <p>Status: Shipped 🚚</p>
+          </div>
+        </template>
 
-<style scoped>
-.order-card {
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
-}
-</style>
+        <style scoped>
+        .order-card {
+          padding: 20px;
+          background: white;
+          border-radius: 10px;
+          box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        </style>
 
 ✅ Now, the order card smoothly fades in when loaded!
 
@@ -3318,26 +3327,28 @@ Example: Button Hover Effect
 vue
  
  
-<template>
-  <motion-button
-    :initial="{ scale: 1 }"
-    :whileHover="{ scale: 1.1 }"
-    class="checkout-btn"
-  >
+        <template>
+          <motion-button
+            :initial="{ scale: 1 }"
+            :whileHover="{ scale: 1.1 }"
+            class="checkout-btn"
+          >
+          
     Checkout Now
-  </motion-button>
-</template>
+    
+          </motion-button>
+        </template>
 
-<style scoped>
-.checkout-btn {
-  padding: 10px 20px;
-  background: #ff6600;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-</style>
+        <style scoped>
+        .checkout-btn {
+          padding: 10px 20px;
+          background: #ff6600;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+        }
+        </style>
 
 ✅ The checkout button now scales up on hover!
 
@@ -3367,9 +3378,9 @@ We need past order history, user behavior, and product demand.
 
 Example Data Format (Stored in Elasticsearch or MySQL):
 
-Order ID	User ID	Product ID	Quantity	Order Date	Category	Total Price
-1001	2001	5001	2	2024-01-01	Electronics	499.99
-1002	2002	5002	1	2024-01-02	Clothing	39.99
+        Order ID	User ID	        Product ID	Quantity	Order Date	Category	Total Price
+        1001	        2001	        5001	        2	        2024-01-01	Electronics	499.99
+        1002	        2002	        5002	        1	        2024-01-02	Clothing	39.99
 
 ✅ Prepare & Store Order Data!
 
@@ -3382,28 +3393,28 @@ Example Model (LSTM for Time Series Predictions):
 python
  
  
-import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
+        import pandas as pd
+        import tensorflow as tf
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import LSTM, Dense
 
-# Load historical order data
-data = pd.read_csv("order_history.csv")
+        # Load historical order data
+        data = pd.read_csv("order_history.csv")
 
-# Prepare training data
-X_train, y_train = ...  # Preprocessed time-series data
+        # Prepare training data
+        X_train, y_train = ...  # Preprocessed time-series data
 
-# Define LSTM model
-model = Sequential([
-    LSTM(50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])),
-    Dense(1)
-])
+        # Define LSTM model
+        model = Sequential([
+            LSTM(50, activation='relu', input_shape=(X_train.shape[1], X_train.shape[2])),
+            Dense(1)
+        ])
 
-model.compile(optimizer='adam', loss='mse')
-model.fit(X_train, y_train, epochs=10, batch_size=32)
+        model.compile(optimizer='adam', loss='mse')
+        model.fit(X_train, y_train, epochs=10, batch_size=32)
 
 # Save the trained model
-model.save("order_prediction_model.h5")
+        model.save("order_prediction_model.h5")
 
 ✅ AI Model Trained!
 
@@ -3412,23 +3423,25 @@ model.save("order_prediction_model.h5")
 We will expose the AI model as a Flask or FastAPI microservice.
 
 Example FastAPI AI Prediction Service
+
 python
  
  
-from fastapi import FastAPI
-import tensorflow as tf
-import numpy as np
+        from fastapi import FastAPI
+        import tensorflow as tf
+        import numpy as np
 
-app = FastAPI()
-model = tf.keras.models.load_model("order_prediction_model.h5")
+        app = FastAPI()
+        model = tf.keras.models.load_model("order_prediction_model.h5")
 
-@app.get("/predict-order")
-def predict_order(user_id: int, product_id: int):
-    # Example: Generate a prediction based on user & product
-    prediction = model.predict(np.array([[user_id, product_id]]))
-    return {"predicted_quantity": float(prediction[0][0])}
+        @app.get("/predict-order")
+        def predict_order(user_id: int, product_id: int):
+            # Example: Generate a prediction based on user & product
+            prediction = model.predict(np.array([[user_id, product_id]]))
+            return {"predicted_quantity": float(prediction[0][0])}
 
 # Run the API
+
 # uvicorn app:app --host 0.0.0.0 --port 8001
 
 ✅ AI Model Deployed as an API!
@@ -3441,9 +3454,9 @@ Add REST API Call in Spring Boot
 java
  
  
-@RestController
-@RequestMapping("/orders")
-public class OrderController {
+        @RestController
+        @RequestMapping("/orders")
+        public class OrderController {
 
     @GetMapping("/predict/{userId}/{productId}")
     public ResponseEntity<String> predictOrder(@PathVariable Long userId, @PathVariable Long productId) {
@@ -3464,31 +3477,31 @@ Vue.js Order Prediction Component
 vue
  
  
-<script setup>
-import { ref, onMounted } from "vue";
-import axios from "axios";
+        <script setup>
+        import { ref, onMounted } from "vue";
+        import axios from "axios";
 
-const prediction = ref(null);
+        const prediction = ref(null);
 
-onMounted(async () => {
-  const response = await axios.get("/api/orders/predict/2001/5001");
-  prediction.value = response.data.predicted_quantity;
-});
-</script>
+        onMounted(async () => {
+          const response = await axios.get("/api/orders/predict/2001/5001");
+          prediction.value = response.data.predicted_quantity;
+        });
+        </script>
 
-<template>
-  <div class="prediction-box">
-    <h3>Predicted Order Demand: {{ prediction }}</h3>
-  </div>
-</template>
+        <template>
+          <div class="prediction-box">
+            <h3>Predicted Order Demand: {{ prediction }}</h3>
+          </div>
+        </template>
 
-<style scoped>
-.prediction-box {
-  padding: 10px;
-  background: #f5f5f5;
-  border-radius: 8px;
-}
-</style>
+        <style scoped>
+        .prediction-box {
+          padding: 10px;
+          background: #f5f5f5;
+          border-radius: 8px;
+        }
+        </style>
 
 ✅ Predictions Now Visible in UI!
 
@@ -3521,9 +3534,9 @@ We need past order transactions, user behavior, and fraudulent patterns.
 
 Example Data Format (Stored in Elasticsearch/MySQL):
 
-Transaction ID	User ID	Amount	Payment Method	Location	IP Address	Fraudulent (Yes/No)
-10001	2001	499.99	Cr  Card	US	192.168.1.1	No
-10002	3002	999.99	PayPal	India	172.16.0.1	Yes
+        Transaction ID	User ID	Amount	Payment Method	Location	        IP Address	Fraudulent (Yes/No)
+        10001	        2001	499.99	Cr  Card	US	                192.168.1.1	No
+        10002	        3002	999.99	PayPal	        India	                172.16.0.1	Yes
 
 ✅ Prepare & Store Transaction Data!
 
@@ -3535,27 +3548,27 @@ Example: Train a Fraud Detection Model (Random Forest)
 python
  
  
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-import joblib
+        import pandas as pd
+        from sklearn.model_selection import train_test_split
+        from sklearn.ensemble import RandomForestClassifier
+        import joblib
 
-# Load transaction data
-data = pd.read_csv("transaction_history.csv")
+        # Load transaction data
+        data = pd.read_csv("transaction_history.csv")
 
-# Prepare features & labels
-X = data.drop(columns=["Fraudulent"])  # Features (amount, location, etc.)
-y = data["Fraudulent"]  # Labels (0 = Legit, 1 = Fraud)
+        # Prepare features & labels
+        X = data.drop(columns=["Fraudulent"])  # Features (amount, location, etc.)
+        y = data["Fraudulent"]  # Labels (0 = Legit, 1 = Fraud)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train model
-model = RandomForestClassifier(n_estimators=100)
-model.fit(X_train, y_train)
+        # Train model
+        model = RandomForestClassifier(n_estimators=100)
+        model.fit(X_train, y_train)
 
 # Save model
-joblib.dump(model, "fraud_detection_model.pkl")
+        joblib.dump(model, "fraud_detection_model.pkl")
 
 ✅ AI Model Trained!
 
@@ -3567,19 +3580,19 @@ Example FastAPI Fraud Detection Service
 python
  
  
-from fastapi import FastAPI
-import joblib
-import numpy as np
+        from fastapi import FastAPI
+        import joblib
+        import numpy as np
 
-app = FastAPI()
-model = joblib.load("fraud_detection_model.pkl")
+        app = FastAPI()
+        model = joblib.load("fraud_detection_model.pkl")
 
-@app.get("/detect-fraud")
-def detect_fraud(amount: float, payment_method: str, location: str, ip_address: str):
-    # Convert input to model format
-    input_data = np.array([[amount, hash(payment_method) % 1000, hash(location) % 1000, hash(ip_address) % 1000]])
-    prediction = model.predict(input_data)
-    return {"is_fraud": bool(prediction[0])}
+        @app.get("/detect-fraud")
+        def detect_fraud(amount: float, payment_method: str, location: str, ip_address: str):
+            # Convert input to model format
+            input_data = np.array([[amount, hash(payment_method) % 1000, hash(location) % 1000, hash(ip_address) % 1000]])
+            prediction = model.predict(input_data)
+            return {"is_fraud": bool(prediction[0])}
 
 # Run the API
 # uvicorn app:app --host 0.0.0.0 --port 8002
@@ -3594,9 +3607,9 @@ Add REST API Call in Spring Boot
 java
  
  
-@RestController
-@RequestMapping("/payments")
-public class PaymentController {
+        @RestController
+        @RequestMapping("/payments")
+        public class PaymentController {
 
     @PostMapping("/process")
     public ResponseEntity<String> processPayment(@RequestBody PaymentRequest payment) {
@@ -3626,33 +3639,33 @@ Vue.js Fraud Detection Alert Component
 vue
  
  
-<script setup>
-import { ref } from "vue";
-import axios from "axios";
+        <script setup>
+        import { ref } from "vue";
+        import axios from "axios";
 
-const fraudAlert = ref(null);
+        const fraudAlert = ref(null);
 
-const checkFraud = async () => {
-  const response = await axios.get("/api/payments/process", {
-    params: { amount: 999.99, payment_method: "PayPal", location: "India", ip_address: "172.16.0.1" }
-  });
-  fraudAlert.value = response.data;
-};
-</script>
+        const checkFraud = async () => {
+          const response = await axios.get("/api/payments/process", {
+            params: { amount: 999.99, payment_method: "PayPal", location: "India", ip_address: "172.16.0.1" }
+          });
+          fraudAlert.value = response.data;
+        };
+        </script>
 
-<template>
-  <div>
-    <button @click="checkFraud">Check Fraud</button>
-    <p v-if="fraudAlert" class="fraud-warning">{{ fraudAlert }}</p>
-  </div>
-</template>
+        <template>
+          <div>
+            <button @click="checkFraud">Check Fraud</button>
+            <p v-if="fraudAlert" class="fraud-warning">{{ fraudAlert }}</p>
+          </div>
+        </template>
 
-<style scoped>
-.fraud-warning {
-  color: red;
-  font-weight: bold;
-}
-</style>
+        <style scoped>
+        .fraud-warning {
+          color: red;
+          font-weight: bold;
+        }
+        </style>
 
 ✅ Admin Dashboard Now Shows Fraud Alerts!
 
@@ -3687,15 +3700,15 @@ sh
  
 # Download & start Kafka
 
-wget https://downloads.apache.org/kafka/3.0.0/kafka_2.13-3.0.0.tgz
+        wget https://downloads.apache.org/kafka/3.0.0/kafka_2.13-3.0.0.tgz
 
-tar -xvzf kafka_2.13-3.0.0.tgz
+        tar -xvzf kafka_2.13-3.0.0.tgz
 
-cd kafka_2.13-3.0.0
+        cd kafka_2.13-3.0.0
 
-bin/zookeeper-server-start.sh config/zookeeper.properties
+        bin/zookeeper-server-start.sh config/zookeeper.properties
 
-bin/kafka-server-start.sh config/server.properties
+        bin/kafka-server-start.sh config/server.properties
 
 For RocketMQ, install and start the broker:
 
@@ -3703,10 +3716,10 @@ sh
  
  
 # Start NameServer
-nohup sh bin/mqnamesrv &
+        nohup sh bin/mqnamesrv &
 
 # Start Broker
-nohup sh bin/mqbroker -n localhost:9876 &
+        nohup sh bin/mqbroker -n localhost:9876 &
 
 ✅ Kafka/RocketMQ is now running!
 
@@ -3718,22 +3731,22 @@ Kafka Producer in Spring Boot
 java
  
  
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+        import org.springframework.kafka.core.KafkaTemplate;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class OrderEventProducer {
+        @Service
+        public class OrderEventProducer {
     
-    private final KafkaTemplate<String, String> kafkaTemplate;
+            private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public OrderEventProducer(KafkaTemplate<String, String> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
+            public OrderEventProducer(KafkaTemplate<String, String> kafkaTemplate) {
+                this.kafkaTemplate = kafkaTemplate;
+            }
 
-    public void sendOrderEvent(String orderJson) {
-        kafkaTemplate.send("order-topic", orderJson);
-    }
-}
+            public void sendOrderEvent(String orderJson) {
+                kafkaTemplate.send("order-topic", orderJson);
+            }
+        }
 
 ✅ Now, every new order is published to Kafka!
 
@@ -3753,31 +3766,31 @@ java
     
     
     
-import org.springframework.kafka.annotation.KafkaListener;
+        import org.springframework.kafka.annotation.KafkaListener;
 
-import org.springframework.stereotype.Service;
+        import org.springframework.stereotype.Service;
 
-import org.springframework.web.client.RestTemplate;
+        import org.springframework.web.client.RestTemplate;
 
-@Service
-public class FraudDetectionConsumer {
-    private final RestTemplate restTemplate = new RestTemplate();
+        @Service
+        public class FraudDetectionConsumer {
+            private final RestTemplate restTemplate = new RestTemplate();
 
-    @KafkaListener(topics = "order-topic", groupId = "fraud-group")
-    public void consumeOrder(String orderJson) {
-        // Call AI Fraud Detection API
-        String aiUrl = "http://ai-service:8002/detect-fraud?order=" + orderJson;
-        String prediction = restTemplate.getForObject(aiUrl, String.class);
+            @KafkaListener(topics = "order-topic", groupId = "fraud-group")
+            public void consumeOrder(String orderJson) {
+                // Call AI Fraud Detection API
+                String aiUrl = "http://ai-service:8002/detect-fraud?order=" + orderJson;
+                String prediction = restTemplate.getForObject(aiUrl, String.class);
         
-        // Publish Fraud Detection Result
-        sendFraudResult(orderJson, prediction);
-    }
+                // Publish Fraud Detection Result
+                sendFraudResult(orderJson, prediction);
+            }
 
-    private void sendFraudResult(String orderJson, String result) {
-        System.out.println("Fraud Detection Result: " + result);
-        // Publish result to another topic if needed
-    }
-}
+            private void sendFraudResult(String orderJson, String result) {
+                System.out.println("Fraud Detection Result: " + result);
+                // Publish result to another topic if needed
+            }
+        }
 
 ✅ Now, AI predictions are triggered in real-time!
 
@@ -3789,14 +3802,14 @@ Spring Boot Fraud Processing Consumer
 java
  
  
-@KafkaListener(topics = "fraud-detection-topic", groupId = "order-group")
-public void processFraudResult(String fraudResult) {
-    if (fraudResult.contains("true")) {
-        System.out.println("⚠️ Fraudulent transaction detected! Blocking order.");
-    } else {
-        System.out.println("✅ Order is safe. Proceeding with fulfillment.");
-    }
-}
+        @KafkaListener(topics = "fraud-detection-topic", groupId = "order-group")
+        public void processFraudResult(String fraudResult) {
+            if (fraudResult.contains("true")) {
+                System.out.println("⚠️ Fraudulent transaction detected! Blocking order.");
+            } else {
+                System.out.println("✅ Order is safe. Proceeding with fulfillment.");
+            }
+        }
 
 ✅ System now reacts to fraud predictions instantly!
 
@@ -3808,32 +3821,32 @@ Vue.js Kafka WebSocket Listener
 vue
  
  
-<script setup>
-import { ref, onMounted } from "vue";
+        <script setup>
+        import { ref, onMounted } from "vue";
 
-const fraudAlert = ref(null);
-const eventSource = new EventSource("/api/kafka-stream");
+        const fraudAlert = ref(null);
+        const eventSource = new EventSource("/api/kafka-stream");
 
-onMounted(() => {
-  eventSource.onmessage = (event) => {
-    fraudAlert.value = event.data;
-  };
-});
-</script>
+        onMounted(() => {
+          eventSource.onmessage = (event) => {
+            fraudAlert.value = event.data;
+          };
+        });
+        </script>
 
-<template>
-  <div>
-    <h3>Real-Time Fraud Alerts</h3>
-    <p v-if="fraudAlert" class="fraud-warning">{{ fraudAlert }}</p>
-  </div>
-</template>
+        <template>
+          <div>
+            <h3>Real-Time Fraud Alerts</h3>
+            <p v-if="fraudAlert" class="fraud-warning">{{ fraudAlert }}</p>
+          </div>
+        </template>
 
-<style scoped>
-.fraud-warning {
-  color: red;
-  font-weight: bold;
-}
-</style>
+        <style scoped>
+        .fraud-warning {
+          color: red;
+          font-weight: bold;
+        }
+        </style>
 
 ✅ Admins now see fraud alerts instantly!
 
@@ -3867,25 +3880,26 @@ A customer ordering 100+ high-value items in seconds
 Sudden login attempts from different locations
 High-frequency payment failures
 Train an Isolation Forest Model
+
 python
  
  
-import pandas as pd
-from sklearn.ensemble import IsolationForest
-import joblib
+        import pandas as pd
+        from sklearn.ensemble import IsolationForest
+        import joblib
 
 # Load transaction data
-data = pd.read_csv("transaction_data.csv")
+        data = pd.read_csv("transaction_data.csv")
 
 # Select relevant features
-X = data[["amount", "transaction_time", "failed_attempts", "geo_location"]]
+        X = data[["amount", "transaction_time", "failed_attempts", "geo_location"]]
 
 # Train Anomaly Detection Model
-model = IsolationForest(contamination=0.01)  # 1% expected anomalies
-model.fit(X)
+        model = IsolationForest(contamination=0.01)  # 1% expected anomalies
+        model.fit(X)
 
 # Save model
-joblib.dump(model, "anomaly_detection_model.pkl")
+        joblib.dump(model, "anomaly_detection_model.pkl")
 
 ✅ Anomaly Detection Model Trained & Saved!
 
@@ -3893,18 +3907,18 @@ Deploy Anomaly Detection as FastAPI Microservice
 python
  
  
-from fastapi import FastAPI
-import joblib
-import numpy as np
+        from fastapi import FastAPI
+        import joblib
+        import numpy as np
 
-app = FastAPI()
-model = joblib.load("anomaly_detection_model.pkl")
+        app = FastAPI()
+        model = joblib.load("anomaly_detection_model.pkl")
 
-@app.get("/detect-anomaly")
-def detect_anomaly(amount: float, transaction_time: float, failed_attempts: int, geo_location: str):
-    input_data = np.array([[amount, transaction_time, failed_attempts, hash(geo_location) % 1000]])
-    prediction = model.predict(input_data)
-    return {"is_anomaly": bool(prediction[0] == -1)}
+        @app.get("/detect-anomaly")
+        def detect_anomaly(amount: float, transaction_time: float, failed_attempts: int, geo_location: str):
+            input_data = np.array([[amount, transaction_time, failed_attempts, hash(geo_location) % 1000]])
+            prediction = model.predict(input_data)
+            return {"is_anomaly": bool(prediction[0] == -1)}
 
 # Start with: uvicorn app:app --host 0.0.0.0 --port 8003
 
@@ -3918,24 +3932,25 @@ Normal vs. suspicious login behavior
 High-volume returns & disputes
 Payment method switching patterns
 Train a User Behavior Model (Random Forest)
+
 python
  
  
-from sklearn.ensemble import RandomForestClassifier
+        from sklearn.ensemble import RandomForestClassifier
 
-# Load user activity data
-behavior_data = pd.read_csv("user_behavior.csv")
+        # Load user activity data
+        behavior_data = pd.read_csv("user_behavior.csv")
 
-# Features: login_time, transaction_count, failed_payments, refund_requests
-X = behavior_data.drop(columns=["is_suspicious"])
-y = behavior_data["is_suspicious"]
+        # Features: login_time, transaction_count, failed_payments, refund_requests
+        X = behavior_data.drop(columns=["is_suspicious"])
+        y = behavior_data["is_suspicious"]
 
-# Train Model
-model = RandomForestClassifier(n_estimators=100)
-model.fit(X, y)
+        # Train Model
+        model = RandomForestClassifier(n_estimators=100)
+        model.fit(X, y)
 
-# Save Model
-joblib.dump(model, "behavior_analysis_model.pkl")
+        # Save Model
+        joblib.dump(model, "behavior_analysis_model.pkl")
 
 ✅ Behavior Analysis Model Trained!
 
@@ -3943,11 +3958,11 @@ Deploy Behavior Analysis as FastAPI Microservice
 python
  
  
-@app.get("/analyze-behavior")
-def analyze_behavior(login_time: float, transaction_count: int, failed_payments: int, refund_requests: int):
-    input_data = np.array([[login_time, transaction_count, failed_payments, refund_requests]])
-    prediction = model.predict(input_data)
-    return {"is_suspicious": bool(prediction[0])}
+        @app.get("/analyze-behavior")
+        def analyze_behavior(login_time: float, transaction_count: int, failed_payments: int, refund_requests: int):
+            input_data = np.array([[login_time, transaction_count, failed_payments, refund_requests]])
+            prediction = model.predict(input_data)
+            return {"is_suspicious": bool(prediction[0])}
     
 ✅ Behavior Analysis API is live!
 
@@ -3959,11 +3974,11 @@ Publish Order & User Events to Kafka
 java
  
  
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+        import org.springframework.kafka.core.KafkaTemplate;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class EventPublisher {
+        @Service
+        public class EventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 
@@ -3986,8 +4001,8 @@ Consume Events & Trigger AI Predictions
 java
  
  
-@KafkaListener(topics = "transaction-events", groupId = "ai-service-group")
-public void processTransaction(String transactionJson) {
+        @KafkaListener(topics = "transaction-events", groupId = "ai-service-group")
+        public void processTransaction(String transactionJson) {
     String anomalyResult = restTemplate.getForObject("http://ai-service:8003/detect-anomaly?data=" + transactionJson, String.class);
     String fraudResult = restTemplate.getForObject("http://ai-service:8002/detect-fraud?data=" + transactionJson, String.class);
 
@@ -4004,8 +4019,8 @@ Block Fraudulent Orders & Flag Suspicious Users
 java
  
  
-@KafkaListener(topics = "ai-results", groupId = "order-service-group")
-public void handleAiResults(String aiResultsJson) {
+        @KafkaListener(topics = "ai-results", groupId = "order-service-group")
+        public void handleAiResults(String aiResultsJson) {
     if (aiResultsJson.contains("is_fraud\":true") || aiResultsJson.contains("is_anomaly\":true")) {
         System.out.println("⚠️ Fraudulent or Anomalous Order Detected! Blocking transaction.");
     } else {
@@ -4023,32 +4038,32 @@ Vue.js AI Insights Component
 vue
  
  
-<script setup>
-import { ref, onMounted } from "vue";
+        <script setup>
+        import { ref, onMounted } from "vue";
 
-const aiAlerts = ref(null);
-const eventSource = new EventSource("/api/ai-results-stream");
+        const aiAlerts = ref(null);
+        const eventSource = new EventSource("/api/ai-results-stream");
 
-onMounted(() => {
-  eventSource.onmessage = (event) => {
-    aiAlerts.value = event.data;
-  };
-});
-</script>
+        onMounted(() => {
+          eventSource.onmessage = (event) => {
+            aiAlerts.value = event.data;
+          };
+        });
+        </script>
 
-<template>
-  <div>
-    <h3>Real-Time AI Insights</h3>
-    <p v-if="aiAlerts" class="alert">{{ aiAlerts }}</p>
-  </div>
-</template>
+        <template>
+          <div>
+            <h3>Real-Time AI Insights</h3>
+            <p v-if="aiAlerts" class="alert">{{ aiAlerts }}</p>
+          </div>
+        </template>
 
-<style scoped>
-.alert {
-  color: red;
-  font-weight: bold;
-}
-</style>
+        <style scoped>
+        .alert {
+          color: red;
+          font-weight: bold;
+        }
+        </style>
 
 ✅ Admins can now monitor AI fraud & anomaly alerts in real-time!
 
@@ -4095,13 +4110,13 @@ Feature Engineering with Pandas
 python
  
  
-import pandas as pd
+        import pandas as pd
 
-df["amount_deviation"] = abs(df["amount"] - df["avg_transaction"]) / df["std_transaction"]
-df["velocity"] = df["transaction_count_last_30min"] / df["transaction_count_last_24hr"]
-df["location_change"] = df["last_location"] != df["current_location"]
-df["login_time_hour"] = pd.to_datetime(df["login_time"]).dt.hour
-df["suspicious_hour"] = df["login_time_hour"].apply(lambda x: 1 if x < 5 else 0)
+        df["amount_deviation"] = abs(df["amount"] - df["avg_transaction"]) / df["std_transaction"]
+        df["velocity"] = df["transaction_count_last_30min"] / df["transaction_count_last_24hr"]
+        df["location_change"] = df["last_location"] != df["current_location"]
+        df["login_time_hour"] = pd.to_datetime(df["login_time"]).dt.hour
+        df["suspicious_hour"] = df["login_time_hour"].apply(lambda x: 1 if x < 5 else 0)
 
 ✅ New features added for anomaly detection!
 
@@ -4113,19 +4128,19 @@ Grid Search for Isolation Forest
 python
  
  
-from sklearn.ensemble import IsolationForest
-from sklearn.model_selection import GridSearchCV
+        from sklearn.ensemble import IsolationForest
+        from sklearn.model_selection import GridSearchCV
 
-param_grid = {
-    "n_estimators": [50, 100, 200],
-    "max_samples": [0.5, 0.75, 1.0],
-    "contamination": [0.01, 0.02, 0.05]
-}
+        param_grid = {
+            "n_estimators": [50, 100, 200],
+            "max_samples": [0.5, 0.75, 1.0],
+            "contamination": [0.01, 0.02, 0.05]
+        }
 
-grid_search = GridSearchCV(IsolationForest(), param_grid, cv=3)
-grid_search.fit(X_train)
+        grid_search = GridSearchCV(IsolationForest(), param_grid, cv=3)
+        grid_search.fit(X_train)
 
-print("Best Parameters:", grid_search.best_params_)
+        print("Best Parameters:", grid_search.best_params_)
 
 ✅ Model optimized for higher precision & recall!
 
@@ -4137,22 +4152,22 @@ Consume Real-Time Data & Retrain Model
 python
  
  
-from kafka import KafkaConsumer
-import pandas as pd
-import joblib
+        from kafka import KafkaConsumer
+        import pandas as pd
+        import joblib
 
-consumer = KafkaConsumer('transaction-events', bootstrap_servers='localhost:9092')
+        consumer = KafkaConsumer('transaction-events', bootstrap_servers='localhost:9092')
 
-transactions = []
-for message in consumer:
-    transaction = eval(message.value.decode())
-    transactions.append(transaction)
+        transactions = []
+        for message in consumer:
+            transaction = eval(message.value.decode())
+            transactions.append(transaction)
 
-    if len(transactions) > 100:  # Retrain model every 100 new transactions
-        df = pd.DataFrame(transactions)
-        model.fit(df[["amount", "velocity", "location_change"]])
-        joblib.dump(model, "updated_anomaly_model.pkl")
-        transactions = []  # Reset batch
+            if len(transactions) > 100:  # Retrain model every 100 new transactions
+                df = pd.DataFrame(transactions)
+                model.fit(df[["amount", "velocity", "location_change"]])
+                joblib.dump(model, "updated_anomaly_model.pkl")
+                transactions = []  # Reset batch
         
 ✅ Models are now adapting dynamically to new fraud patterns!
 
@@ -4164,19 +4179,19 @@ Stacked Model (Random Forest + XGBoost + Neural Network)
 python
  
  
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import VotingClassifier
+        from sklearn.ensemble import RandomForestClassifier
+        from xgboost import XGBClassifier
+        from sklearn.neural_network import MLPClassifier
+        from sklearn.ensemble import VotingClassifier
 
-rf = RandomForestClassifier(n_estimators=100)
-xgb = XGBClassifier(n_estimators=100, learning_rate=0.1)
-mlp = MLPClassifier(hidden_layer_sizes=(50, 50), max_iter=500)
+        rf = RandomForestClassifier(n_estimators=100)
+        xgb = XGBClassifier(n_estimators=100, learning_rate=0.1)
+        mlp = MLPClassifier(hidden_layer_sizes=(50, 50), max_iter=500)
 
-ensemble_model = VotingClassifier(estimators=[("rf", rf), ("xgb", xgb), ("mlp", mlp)], voting="soft")
-ensemble_model.fit(X_train, y_train)
+        ensemble_model = VotingClassifier(estimators=[("rf", rf), ("xgb", xgb), ("mlp", mlp)], voting="soft")
+        ensemble_model.fit(X_train, y_train)
 
-print("Accuracy:", ensemble_model.score(X_test, y_test))
+        print("Accuracy:", ensemble_model.score(X_test, y_test))
 
 ✅ More robust fraud detection with ensemble learning!
 
@@ -4190,15 +4205,15 @@ Expose Model Performance in FastAPI
 python
  
  
-from prometheus_client import start_http_server, Gauge
+        from prometheus_client import start_http_server, Gauge
 
-model_accuracy = Gauge("model_accuracy", "Model accuracy over time")
+        model_accuracy = Gauge("model_accuracy", "Model accuracy over time")
 
-@app.get("/update-metrics")
-def update_metrics():
-    accuracy = ensemble_model.score(X_test, y_test)
-    model_accuracy.set(accuracy)
-    return {"accuracy": accuracy}
+        @app.get("/update-metrics")
+        def update_metrics():
+            accuracy = ensemble_model.score(X_test, y_test)
+            model_accuracy.set(accuracy)
+            return {"accuracy": accuracy}
     
 ✅ Now you can track AI accuracy over time!
 
@@ -4231,27 +4246,30 @@ def update_metrics():
 Using statistical properties of transactions, user behavior, and payment patterns can help the model learn patterns in fraud vs. normal activity.
 
 New Statistical Features
-Feature Name	Description
-avg_transaction	User's average transaction amount
-std_transaction	Standard deviation of past transactions
-max_transaction	Maximum transaction amount in history
-min_transaction	Minimum transaction amount
-spending_variance	How much spending fluctuates over time
+
+        Feature Name	        Description
+        avg_transaction	        User's average transaction amount
+        std_transaction	        Standard deviation of past transactions
+        max_transaction	        Maximum transaction amount in history
+        min_transaction	        Minimum transaction amount
+        spending_variance	How much spending fluctuates over time
+        
 Feature Engineering in Python
+
 python
  
  
-import pandas as pd
+        import pandas as pd
 
-# Load transaction data
-df = pd.read_csv("transactions.csv")
+        # Load transaction data
+        df = pd.read_csv("transactions.csv")
 
-# Create statistical features
-df["avg_transaction"] = df.groupby("user_id")["amount"].transform("mean")
-df["std_transaction"] = df.groupby("user_id")["amount"].transform("std")
-df["max_transaction"] = df.groupby("user_id")["amount"].transform("max")
-df["min_transaction"] = df.groupby("user_id")["amount"].transform("min")
-df["spending_variance"] = df["std_transaction"] / df["avg_transaction"]
+        # Create statistical features
+        df["avg_transaction"] = df.groupby("user_id")["amount"].transform("mean")
+        df["std_transaction"] = df.groupby("user_id")["amount"].transform("std")
+        df["max_transaction"] = df.groupby("user_id")["amount"].transform("max")
+        df["min_transaction"] = df.groupby("user_id")["amount"].transform("min")
+        df["spending_variance"] = df["std_transaction"] / df["avg_transaction"]
 
 ✅ Added statistical features for transaction risk analysis!
 
@@ -4260,34 +4278,38 @@ df["spending_variance"] = df["std_transaction"] / df["avg_transaction"]
 Fraudulent behavior often differs based on time of day, days of the week, and session activity.
 
 Time-Based Features
-Feature Name	Description
-hour_of_day	Hour when the transaction occurred
-day_of_week	Day of the week (Monday = 0, Sunday = 6)
-weekend	Whether transaction happened on the weekend
-time_since_last_txn	Time gap between current & last transaction
+
+        Feature Name	        Description
+        hour_of_day	        Hour when the transaction occurred
+        day_of_week	        Day of the week (Monday = 0, Sunday = 6)
+        weekend	                Whether transaction happened on the weekend
+        time_since_last_txn	Time gap between current & last transaction
+        
 Behavioral Features
-Feature Name	Description
-session_count	Number of login sessions per day
-device_switch	Whether user logged in from multiple devices
-failed_logins	Number of failed login attempts
-unusual_time	Whether the transaction happened at odd hours
+
+        Feature Name	Description
+        session_count	Number of login sessions per day
+        device_switch	Whether user logged in from multiple devices
+        failed_logins	Number of failed login attempts
+        unusual_time	Whether the transaction happened at odd hours
+
 Feature Engineering for Time & Behavior
 python
  
  
-from datetime import datetime
+        from datetime import datetime
 
-df["timestamp"] = pd.to_datetime(df["timestamp"])
-df["hour_of_day"] = df["timestamp"].dt.hour
-df["day_of_week"] = df["timestamp"].dt.dayofweek
-df["weekend"] = (df["day_of_week"] >= 5).astype(int)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["hour_of_day"] = df["timestamp"].dt.hour
+        df["day_of_week"] = df["timestamp"].dt.dayofweek
+        df["weekend"] = (df["day_of_week"] >= 5).astype(int)
 
-# Time difference between transactions
-df["time_since_last_txn"] = df.groupby("user_id")["timestamp"].diff().dt.total_seconds().fillna(0)
+        # Time difference between transactions
+        df["time_since_last_txn"] = df.groupby("user_id")["timestamp"].diff().dt.total_seconds().fillna(0)
 
-# Behavioral Features
-df["device_switch"] = df.groupby("user_id")["device_id"].nunique() > 1
-df["unusual_time"] = ((df["hour_of_day"] < 5) | (df["hour_of_day"] > 23)).astype(int)
+        # Behavioral Features
+        df["device_switch"] = df.groupby("user_id")["device_id"].nunique() > 1
+        df["unusual_time"] = ((df["hour_of_day"] < 5) | (df["hour_of_day"] > 23)).astype(int)
 
 ✅ Now detecting fraud patterns based on time & user behavior!
 
@@ -4296,22 +4318,25 @@ df["unusual_time"] = ((df["hour_of_day"] < 5) | (df["hour_of_day"] > 23)).astype
 Fraudsters often make rapid, high-volume transactions. Aggregated features help track such behavior.
 
 New Aggregated Features
-Feature Name	Description
-txn_count_1hr	Number of transactions in the past 1 hour
-txn_count_24hr	Transactions in the past 24 hours
-avg_spend_7days	User's average spending over the last 7 days
-high_value_ratio	% of high-value transactions vs. total
+
+        Feature Name	        Description
+        txn_count_1hr	        Number of transactions in the past 1 hour
+        txn_count_24hr	        Transactions in the past 24 hours
+        avg_spend_7days	        User's average spending over the last 7 days
+        high_value_ratio	% of high-value transactions vs. total
+        
 Feature Engineering for Aggregated Values
 python
  
  
-df["txn_count_1hr"] = df.groupby("user_id")["timestamp"].transform(lambda x: x.rolling("1H").count())
-df["txn_count_24hr"] = df.groupby("user_id")["timestamp"].transform(lambda x: x.rolling("1D").count())
-df["avg_spend_7days"] = df.groupby("user_id")["amount"].transform(lambda x: x.rolling("7D").mean())
+        df["txn_count_1hr"] = df.groupby("user_id")["timestamp"].transform(lambda x: x.rolling("1H").count())
+        df["txn_count_24hr"] = df.groupby("user_id")["timestamp"].transform(lambda x: x.rolling("1D").count())
+        df["avg_spend_7days"] = df.groupby("user_id")["amount"].transform(lambda x: x.rolling("7D").mean())
 
 # High-value transaction ratio
-df["high_value_ratio"] = df["amount"] > df["avg_transaction"] * 2
-df["high_value_ratio"] = df.groupby("user_id")["high_value_ratio"].transform("mean")
+
+        df["high_value_ratio"] = df["amount"] > df["avg_transaction"] * 2
+        df["high_value_ratio"] = df.groupby("user_id")["high_value_ratio"].transform("mean")
 
 ✅ Now identifying unusual high-value transactions!
 
@@ -4320,19 +4345,22 @@ df["high_value_ratio"] = df.groupby("user_id")["high_value_ratio"].transform("me
 Fraudulent users often use multiple payment methods, retry failed payments, or make chargebacks.
 
 New Transaction & Payment Features
-Feature Name	Description
-multiple_payments	User tried multiple payment methods
-chargeback_count	Number of chargebacks for this user
-failed_attempts	Number of failed payment attempts
-first_time_method	First-time use of a payment method
+
+        Feature Name	        Description
+        multiple_payments	User tried multiple payment methods
+        chargeback_count	Number of chargebacks for this user
+        failed_attempts	        Number of failed payment attempts
+        first_time_method	First-time use of a payment method
+        
 Feature Engineering for Payment Fraud
+        
 python
  
  
-df["multiple_payments"] = df.groupby("user_id")["payment_method"].nunique() > 1
-df["chargeback_count"] = df.groupby("user_id")["chargebacks"].transform("sum")
-df["failed_attempts"] = df.groupby("user_id")["failed_payments"].transform("sum")
-df["first_time_method"] = df.groupby(["user_id", "payment_method"])["timestamp"].rank(method="first") == 1
+        df["multiple_payments"] = df.groupby("user_id")["payment_method"].nunique() > 1
+        df["chargeback_count"] = df.groupby("user_id")["chargebacks"].transform("sum")
+        df["failed_attempts"] = df.groupby("user_id")["failed_payments"].transform("sum")
+        df["first_time_method"] = df.groupby(["user_id", "payment_method"])["timestamp"].rank(method="first") == 1
 
 ✅ Now detecting risky payment behaviors!
 
@@ -4341,18 +4369,19 @@ df["first_time_method"] = df.groupby(["user_id", "payment_method"])["timestamp"]
 Too many features can lead to overfitting. Let’s use feature importance & selection techniques.
 
 Feature Selection with Mutual Information
+
 python
  
  
-from sklearn.feature_selection import mutual_info_classif
+        from sklearn.feature_selection import mutual_info_classif
 
-X = df.drop(columns=["fraud_flag"])  # Remove target variable
-y = df["fraud_flag"]
+        X = df.drop(columns=["fraud_flag"])  # Remove target variable
+        y = df["fraud_flag"]
 
-importance_scores = mutual_info_classif(X, y)
-feature_importance = pd.Series(importance_scores, index=X.columns).sort_values(ascending=False)
+        importance_scores = mutual_info_classif(X, y)
+        feature_importance = pd.Series(importance_scores, index=X.columns).sort_values(ascending=False)
 
-print(feature_importance.head(10))  # Show top 10 important features
+        print(feature_importance.head(10))  # Show top 10 important features
 
 ✅ Only selecting the most useful features for the model!
 
@@ -4383,35 +4412,37 @@ print(feature_importance.head(10))  # Show top 10 important features
 
 To automate refunds, the AI model should assess customer behavior, transaction details, and refund history.
 
-Feature Name	Description
-refund_count_6m	Number of refunds in the past 6 months
-refund_ratio	% of transactions that resulted in refunds
-high_value_refund	Refund amount vs. user's average transaction
-chargeback_history	Past chargebacks linked to this user
-multiple_accounts	User has multiple linked accounts
-dispute_success_rate	% of disputes won by the customer
-return_reason_category	Categorized reason for return (e.g., Defective, Fraudulent, No Reason)
-suspicious_behavior	Whether the user has a high-risk fraud score
+        Feature Name	        Description
+        refund_count_6m	        Number of refunds in the past 6 months
+        refund_ratio	        % of transactions that resulted in refunds
+        high_value_refund	Refund amount vs. user's average transaction
+        chargeback_history	Past chargebacks linked to this user
+        multiple_accounts	User has multiple linked accounts
+        dispute_success_rate	% of disputes won by the customer
+        return_reason_category	Categorized reason for return (e.g., Defective, Fraudulent, No Reason)
+        suspicious_behavior	Whether the user has a high-risk fraud score
+        
 Feature Engineering in Python
+
 python
  
  
-import pandas as pd
+        import pandas as pd
 
-# Load refund & transaction data
-df = pd.read_csv("refund_requests.csv")
+        # Load refund & transaction data
+        df = pd.read_csv("refund_requests.csv")
 
-# Create refund behavior features
-df["refund_count_6m"] = df.groupby("user_id")["refund_id"].transform(lambda x: x.rolling("180D").count())
-df["refund_ratio"] = df["refund_count_6m"] / df.groupby("user_id")["transaction_id"].transform("count")
-df["high_value_refund"] = df["refund_amount"] > df["avg_transaction"] * 2
-df["suspicious_behavior"] = (df["refund_ratio"] > 0.5) | (df["high_value_refund"] == True)
+        # Create refund behavior features
+        df["refund_count_6m"] = df.groupby("user_id")["refund_id"].transform(lambda x: x.rolling("180D").count())
+        df["refund_ratio"] = df["refund_count_6m"] / df.groupby("user_id")["transaction_id"].transform("count")
+        df["high_value_refund"] = df["refund_amount"] > df["avg_transaction"] * 2
+        df["suspicious_behavior"] = (df["refund_ratio"] > 0.5) | (df["high_value_refund"] == True)
 
-# Assign categories to return reasons
-return_reasons = {
-    "defective": 1, "fraudulent": 2, "no_reason": 3, "wrong_size": 4
-}
-df["return_reason_category"] = df["return_reason"].map(return_reasons)
+        # Assign categories to return reasons
+        return_reasons = {
+            "defective": 1, "fraudulent": 2, "no_reason": 3, "wrong_size": 4
+        }
+        df["return_reason_category"] = df["return_reason"].map(return_reasons)
 
 ✅ Now the AI model can detect high-risk refund requests!
 
@@ -4424,18 +4455,18 @@ Train a Random Forest Model
 python
  
  
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.model_selection import train_test_split
 
-X = df[["refund_count_6m", "refund_ratio", "high_value_refund", "return_reason_category", "suspicious_behavior"]]
-y = df["refund_approved"]  # 1 = Approve, 0 = Reject
+        X = df[["refund_count_6m", "refund_ratio", "high_value_refund", "return_reason_category", "suspicious_behavior"]]
+        y = df["refund_approved"]  # 1 = Approve, 0 = Reject
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-model = RandomForestClassifier(n_estimators=100)
-model.fit(X_train, y_train)
+        model = RandomForestClassifier(n_estimators=100)
+        model.fit(X_train, y_train)
 
-print("Model Accuracy:", model.score(X_test, y_test))
+        print("Model Accuracy:", model.score(X_test, y_test))
 
 ✅ Trained model to predict refund approvals!
 
@@ -4447,21 +4478,21 @@ Create AI-Based Refund API
 python
  
  
-from fastapi import FastAPI
-import joblib
-import pandas as pd
+        from fastapi import FastAPI
+        import joblib
+        import pandas as pd
 
-app = FastAPI()
+        app = FastAPI()
 
-# Load trained AI model
-model = joblib.load("refund_model.pkl")
+        # Load trained AI model
+        model = joblib.load("refund_model.pkl")
 
-@app.post("/predict_refund")
-def predict_refund(data: dict):
-    df = pd.DataFrame([data])
-    prediction = model.predict(df)[0]
+        @app.post("/predict_refund")
+        def predict_refund(data: dict):
+            df = pd.DataFrame([data])
+            prediction = model.predict(df)[0]
     
-    return {"refund_approved": bool(prediction)}
+            return {"refund_approved": bool(prediction)}
     
 ✅ Now refund requests can be evaluated in real time!
 
@@ -4470,13 +4501,14 @@ def predict_refund(data: dict):
 Modify Refund Approval Microservice
 If AI predicts refund = ✅ Approved, automatically process refund
 If AI predicts refund = ❌ Rejected, send to manual review team
+
 Update Refund Processing in Spring Boot
 java
  
  
-@RestController
-@RequestMapping("/refunds")
-public class RefundController {
+        @RestController
+        @RequestMapping("/refunds")
+        public class RefundController {
 
     @Autowired
     private RefundService refundService;
@@ -4503,22 +4535,22 @@ Expose AI Decision Metrics in FastAPI
 python
  
  
-from prometheus_client import start_http_server, Counter
+        from prometheus_client import start_http_server, Counter
 
-refund_approvals = Counter("refund_approved", "Count of Approved Refunds")
-refund_rejections = Counter("refund_rejected", "Count of Rejected Refunds")
+        refund_approvals = Counter("refund_approved", "Count of Approved Refunds")
+        refund_rejections = Counter("refund_rejected", "Count of Rejected Refunds")
 
-@app.post("/predict_refund")
-def predict_refund(data: dict):
-    df = pd.DataFrame([data])
-    prediction = model.predict(df)[0]
+        @app.post("/predict_refund")
+        def predict_refund(data: dict):
+            df = pd.DataFrame([data])
+            prediction = model.predict(df)[0]
     
-    if prediction:
-        refund_approvals.inc()
-    else:
-        refund_rejections.inc()
+            if prediction:
+                refund_approvals.inc()
+            else:
+                refund_rejections.inc()
     
-    return {"refund_approved": bool(prediction)}
+            return {"refund_approved": bool(prediction)}
     
 ✅ Tracking refund approvals & rejections over time!
 
@@ -4543,22 +4575,23 @@ We'll use features such as:
 ✅ Time-based Patterns (Refund requests immediately after purchase)
 
 Feature Engineering with Python
+
 python
  
  
-import pandas as pd
+        import pandas as pd
 
-df = pd.read_csv("refund_data.csv")
+        df = pd.read_csv("refund_data.csv")
 
-# Creating advanced behavioral features
-df["avg_refund_amount"] = df.groupby("user_id")["refund_amount"].transform("mean")
-df["refund_rate"] = df.groupby("user_id")["refund_id"].transform("count") / df.groupby("user_id")["transaction_id"].transform("count")
-df["time_since_last_refund"] = (pd.to_datetime(df["request_date"]) - pd.to_datetime(df.groupby("user_id")["request_date"].shift(1))).dt.days.fillna(0)
+        # Creating advanced behavioral features
+        df["avg_refund_amount"] = df.groupby("user_id")["refund_amount"].transform("mean")
+        df["refund_rate"] = df.groupby("user_id")["refund_id"].transform("count") / df.groupby("user_id")["transaction_id"].transform("count")
+        df["time_since_last_refund"] = (pd.to_datetime(df["request_date"]) - pd.to_datetime(df.groupby("user_id")["request_date"].shift(1))).dt.days.fillna(0)
 
-# Categorizing refund reasons
-df["return_reason_category"] = df["return_reason"].map({
-    "defective": 1, "fraudulent": 2, "no_reason": 3, "wrong_size": 4
-})
+        # Categorizing refund reasons
+        df["return_reason_category"] = df["return_reason"].map({
+            "defective": 1, "fraudulent": 2, "no_reason": 3, "wrong_size": 4
+        })
 
 ✅ Advanced refund risk features extracted!
 
@@ -4570,28 +4603,28 @@ Train a Deep Learning Model with Keras
 python
  
  
-import tensorflow as tf
-from tensorflow import keras
-from sklearn.model_selection import train_test_split
+        import tensorflow as tf
+        from tensorflow import keras
+        from sklearn.model_selection import train_test_split
 
-# Selecting features
-X = df[["avg_refund_amount", "refund_rate", "time_since_last_refund", "return_reason_category"]]
-y = df["refund_approved"]
+        # Selecting features
+        X = df[["avg_refund_amount", "refund_rate", "time_since_last_refund", "return_reason_category"]]
+        y = df["refund_approved"]
 
-# Splitting data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # Splitting data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Define the deep learning model
-model = keras.Sequential([
-    keras.layers.Dense(16, activation="relu", input_shape=(X_train.shape[1],)),
-    keras.layers.Dense(8, activation="relu"),
-    keras.layers.Dense(1, activation="sigmoid")  # Output layer (binary classification)
-])
+        # Define the deep learning model
+        model = keras.Sequential([
+            keras.layers.Dense(16, activation="relu", input_shape=(X_train.shape[1],)),
+            keras.layers.Dense(8, activation="relu"),
+            keras.layers.Dense(1, activation="sigmoid")  # Output layer (binary classification)
+        ])
 
-model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
-# Train the model
-model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
+        # Train the model
+        model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
 
 ✅ Trained Deep Learning model for refund predictions!
 
@@ -4600,29 +4633,31 @@ model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y
 We'll expose the trained model via FastAPI.
 
 Save & Load Model
+
 python
  
  
-model.save("refund_approval_model.h5")
+        model.save("refund_approval_model.h5")
+        
 python
  
  
-import tensorflow as tf
-from fastapi import FastAPI
-import numpy as np
-import pandas as pd
+        import tensorflow as tf
+        from fastapi import FastAPI
+        import numpy as np
+        import pandas as pd
 
-app = FastAPI()
+        app = FastAPI()
 
-# Load trained model
-model = tf.keras.models.load_model("refund_approval_model.h5")
+        # Load trained model
+        model = tf.keras.models.load_model("refund_approval_model.h5")
 
-@app.post("/predict_refund")
-def predict_refund(data: dict):
-    df = pd.DataFrame([data])
-    prediction = model.predict(df)[0][0]  # Get refund probability
+        @app.post("/predict_refund")
+        def predict_refund(data: dict):
+            df = pd.DataFrame([data])
+            prediction = model.predict(df)[0][0]  # Get refund probability
     
-    return {"refund_approved": bool(prediction > 0.5)}
+            return {"refund_approved": bool(prediction > 0.5)}
     
 ✅ Refund requests are now evaluated by Deep Learning in real-time!
 
@@ -4634,22 +4669,22 @@ Call AI API from Spring Boot
 java
  
  
-@FeignClient(name = "refund-ai", url = "http://localhost:8000")
-public interface RefundPredictionClient {
-    @PostMapping("/predict_refund")
-    Map<String, Boolean> predictRefund(@RequestBody RefundRequest request);
-}
+        @FeignClient(name = "refund-ai", url = "http://localhost:8000")
+        public interface RefundPredictionClient {
+            @PostMapping("/predict_refund")
+            Map<String, Boolean> predictRefund(@RequestBody RefundRequest request);
+        }
 
-@Service
-public class RefundService {
-    @Autowired
-    private RefundPredictionClient aiClient;
+        @Service
+        public class RefundService {
+            @Autowired
+            private RefundPredictionClient aiClient;
 
-    public boolean evaluateRefund(RefundRequest request) {
-        Map<String, Boolean> response = aiClient.predictRefund(request);
-        return response.get("refund_approved");
-    }
-}
+            public boolean evaluateRefund(RefundRequest request) {
+                Map<String, Boolean> response = aiClient.predictRefund(request);
+                return response.get("refund_approved");
+            }
+        }
 
 ✅ Now AI decides refunds automatically!
 
@@ -4665,13 +4700,13 @@ Track Model Accuracy & Refund Trends
 
 We'll analyze customer behavior, transaction trends, and refund history.
 
-Feature Name	Description
-refund_ratio	% of orders resulting in refunds
-high_value_refund	Refund amount vs. user’s avg transaction
-time_between_refunds	Time gap between refund requests
+Feature Name	                Description
+refund_ratio	                % of orders resulting in refunds
+high_value_refund	        Refund amount vs. user’s avg transaction
+time_between_refunds	        Time gap between refund requests
 suspicious_login_pattern	Unusual IP/location change
-multiple_accounts	Linked accounts under same payment method
-chargeback_history	Past chargebacks filed by user
+multiple_accounts	        Linked accounts under same payment method
+chargeback_history	        Past chargebacks filed by user
 
 ✅ Extract advanced behavioral & transactional features!
 
@@ -4683,35 +4718,35 @@ Train an Autoencoder for Fraud Detection
 python
  
  
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
-from sklearn.preprocessing import MinMaxScaler
+        import pandas as pd
+        import numpy as np
+        import tensorflow as tf
+        from tensorflow import keras
+        from sklearn.preprocessing import MinMaxScaler
 
-# Load data
-df = pd.read_csv("transactions.csv")
+        # Load data
+        df = pd.read_csv("transactions.csv")
 
-# Feature selection
-features = ["refund_ratio", "high_value_refund", "time_between_refunds", "suspicious_login_pattern"]
-X = df[features]
+        # Feature selection
+        features = ["refund_ratio", "high_value_refund", "time_between_refunds", "suspicious_login_pattern"]
+        X = df[features]
 
-# Normalize data
-scaler = MinMaxScaler()
-X_scaled = scaler.fit_transform(X)
+        # Normalize data
+        scaler = MinMaxScaler()
+        X_scaled = scaler.fit_transform(X)
 
-# Define Autoencoder
-model = keras.Sequential([
-    keras.layers.Dense(8, activation="relu", input_shape=(X_scaled.shape[1],)),
-    keras.layers.Dense(4, activation="relu"),
-    keras.layers.Dense(8, activation="relu"),
-    keras.layers.Dense(X_scaled.shape[1], activation="sigmoid")  # Reconstruct input
-])
+        # Define Autoencoder
+        model = keras.Sequential([
+            keras.layers.Dense(8, activation="relu", input_shape=(X_scaled.shape[1],)),
+            keras.layers.Dense(4, activation="relu"),
+            keras.layers.Dense(8, activation="relu"),
+            keras.layers.Dense(X_scaled.shape[1], activation="sigmoid")  # Reconstruct input
+        ])
 
-model.compile(optimizer="adam", loss="mse")
+        model.compile(optimizer="adam", loss="mse")
 
 # Train Autoencoder
-model.fit(X_scaled, X_scaled, epochs=50, batch_size=32, validation_split=0.1)
+        model.fit(X_scaled, X_scaled, epochs=50, batch_size=32, validation_split=0.1)
 
 ✅ Autoencoder trained to detect anomalies!
 
@@ -4721,10 +4756,10 @@ Anomalies = Transactions with high reconstruction error
 python
  
  
-reconstruction_errors = np.mean(np.abs(X_scaled - model.predict(X_scaled)), axis=1)
-threshold = np.percentile(reconstruction_errors, 95)  # Top 5% most unusual transactions
+        reconstruction_errors = np.mean(np.abs(X_scaled - model.predict(X_scaled)), axis=1)
+        threshold = np.percentile(reconstruction_errors, 95)  # Top 5% most unusual transactions
 
-df["is_anomaly"] = reconstruction_errors > threshold
+        df["is_anomaly"] = reconstruction_errors > threshold
 
 ✅ Flagged high-risk transactions!
 
@@ -4735,20 +4770,20 @@ Expose AI model as an API for real-time anomaly detection.
 python
  
  
-import tensorflow as tf
-from fastapi import FastAPI
-import numpy as np
-import pandas as pd
+        import tensorflow as tf
+        from fastapi import FastAPI
+        import numpy as np
+        import pandas as pd
 
-app = FastAPI()
-model = tf.keras.models.load_model("anomaly_detector.h5")
+        app = FastAPI()
+        model = tf.keras.models.load_model("anomaly_detector.h5")
 
-@app.post("/detect_anomaly")
-def detect_anomaly(data: dict):
-    df = pd.DataFrame([data])
-    prediction = model.predict(df)[0]
-    
-    return {"is_anomaly": bool(prediction > 0.95)}
+        @app.post("/detect_anomaly")
+        def detect_anomaly(data: dict):
+            df = pd.DataFrame([data])
+            prediction = model.predict(df)[0]
+            
+            return {"is_anomaly": bool(prediction > 0.95)}
     
 ✅ Now we can detect fraud in real-time!
 
@@ -4757,25 +4792,26 @@ def detect_anomaly(data: dict):
 Modify Payment & Refund Services to check for anomalies before approving requests.
 
 Call AI API from Spring Boot
+
 java
  
  
-@FeignClient(name = "anomaly-detector", url = "http://localhost:8000")
-public interface AnomalyDetectionClient {
-    @PostMapping("/detect_anomaly")
-    Map<String, Boolean> detectAnomaly(@RequestBody TransactionRequest request);
-}
+        @FeignClient(name = "anomaly-detector", url = "http://localhost:8000")
+        public interface AnomalyDetectionClient {
+            @PostMapping("/detect_anomaly")
+            Map<String, Boolean> detectAnomaly(@RequestBody TransactionRequest request);
+        }
 
-@Service
-public class FraudDetectionService {
-    @Autowired
-    private AnomalyDetectionClient anomalyClient;
+        @Service
+        public class FraudDetectionService {
+            @Autowired
+            private AnomalyDetectionClient anomalyClient;
 
-    public boolean isFraudulent(TransactionRequest request) {
-        Map<String, Boolean> response = anomalyClient.detectAnomaly(request);
-        return response.get("is_anomaly");
-    }
-}
+            public boolean isFraudulent(TransactionRequest request) {
+                Map<String, Boolean> response = anomalyClient.detectAnomaly(request);
+                return response.get("is_anomaly");
+            }
+        }
 
 ✅ Spring Boot now prevents fraudulent transactions automatically!
 
@@ -4783,14 +4819,15 @@ public class FraudDetectionService {
 
 We'll structure the dataset as a time-series of user transactions.
 
-Feature	Description
-timestamp	Transaction time
-user_id	Unique user identifier
-transaction_amount	Amount spent
-refund_flag	Whether refund was requested
-chargeback_flag	Chargeback history
-location_change	New device/location detected
-payment_method	Card, PayPal, crypto, etc.
+        Feature	                Description
+
+        timestamp	        Transaction time
+        user_id	                Unique user identifier
+        transaction_amount	Amount spent
+        refund_flag	        Whether refund was requested
+        chargeback_flag	        Chargeback history
+        location_change	        New device/location detected
+        payment_method	        Card, PayPal, crypto, etc.
 
 ✅ Transform raw transaction logs into time-series sequences!
 
@@ -4802,29 +4839,29 @@ Preprocess Data for LSTM
 python
  
  
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+        import pandas as pd
+        import numpy as np
+        from sklearn.preprocessing import MinMaxScaler
+        from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# Load data
-df = pd.read_csv("transaction_logs.csv")
+        # Load data
+        df = pd.read_csv("transaction_logs.csv")
 
-# Sort transactions by time
-df = df.sort_values(by=["user_id", "timestamp"])
+        # Sort transactions by time
+        df = df.sort_values(by=["user_id", "timestamp"])
 
-# Normalize numeric features
-scaler = MinMaxScaler()
-df[["transaction_amount"]] = scaler.fit_transform(df[["transaction_amount"]])
+        # Normalize numeric features
+        scaler = MinMaxScaler()
+        df[["transaction_amount"]] = scaler.fit_transform(df[["transaction_amount"]])
 
-# Group transactions per user
-grouped = df.groupby("user_id").apply(lambda x: x[["transaction_amount", "refund_flag", "chargeback_flag"]].values.tolist())
+        # Group transactions per user
+        grouped = df.groupby("user_id").apply(lambda x: x[["transaction_amount", "refund_flag", "chargeback_flag"]].values.tolist())
 
-# Pad sequences to the same length
-X = pad_sequences(grouped, dtype="float32", padding="post", maxlen=10)
+        # Pad sequences to the same length
+        X = pad_sequences(grouped, dtype="float32", padding="post", maxlen=10)
 
-# Labels: If the user has a high refund ratio, flag as fraudulent
-y = df.groupby("user_id")["refund_flag"].mean().apply(lambda x: 1 if x > 0.3 else 0).values
+        # Labels: If the user has a high refund ratio, flag as fraudulent
+        y = df.groupby("user_id")["refund_flag"].mean().apply(lambda x: 1 if x > 0.3 else 0).values
 
 ✅ Prepared time-series transaction sequences!
 
@@ -4836,21 +4873,21 @@ Build & Train LSTM Model
 python
  
  
-import tensorflow as tf
-from tensorflow import keras
+        import tensorflow as tf
+        from tensorflow import keras
 
-# Define LSTM model
-model = keras.Sequential([
-    keras.layers.LSTM(64, return_sequences=True, input_shape=(X.shape[1], X.shape[2])),
-    keras.layers.LSTM(32, return_sequences=False),
-    keras.layers.Dense(16, activation="relu"),
-    keras.layers.Dense(1, activation="sigmoid")  # Binary classification
-])
+        # Define LSTM model
+        model = keras.Sequential([
+            keras.layers.LSTM(64, return_sequences=True, input_shape=(X.shape[1], X.shape[2])),
+            keras.layers.LSTM(32, return_sequences=False),
+            keras.layers.Dense(16, activation="relu"),
+            keras.layers.Dense(1, activation="sigmoid")  # Binary classification
+        ])
 
-model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
-# Train LSTM
-model.fit(X, y, epochs=20, batch_size=32, validation_split=0.1)
+        # Train LSTM
+        model.fit(X, y, epochs=20, batch_size=32, validation_split=0.1)
 
 ✅ Trained LSTM for fraud detection!
 
@@ -4862,35 +4899,35 @@ Build & Train Transformer Model
 python
  
  
-from tensorflow.keras.layers import Input, Dense, MultiHeadAttention, LayerNormalization, Dropout
-from tensorflow.keras.models import Model
+        from tensorflow.keras.layers import Input, Dense, MultiHeadAttention, LayerNormalization, Dropout
+        from tensorflow.keras.models import Model
 
-def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0.1):
-    # Multi-Head Attention
-    x = MultiHeadAttention(key_dim=head_size, num_heads=num_heads)(inputs, inputs)
-    x = Dropout(dropout)(x)
-    x = LayerNormalization(epsilon=1e-6)(x)
+        def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0.1):
+            # Multi-Head Attention
+            x = MultiHeadAttention(key_dim=head_size, num_heads=num_heads)(inputs, inputs)
+            x = Dropout(dropout)(x)
+            x = LayerNormalization(epsilon=1e-6)(x)
 
-    # Feed Forward
-    x_ff = Dense(ff_dim, activation="relu")(x)
-    x_ff = Dropout(dropout)(x_ff)
-    x_ff = Dense(inputs.shape[-1])(x_ff)
-    x = LayerNormalization(epsilon=1e-6)(x + x_ff)
+            # Feed Forward
+            x_ff = Dense(ff_dim, activation="relu")(x)
+            x_ff = Dropout(dropout)(x_ff)
+            x_ff = Dense(inputs.shape[-1])(x_ff)
+            x = LayerNormalization(epsilon=1e-6)(x + x_ff)
     
-    return x
+            return x
 
-# Input Layer
-inputs = Input(shape=(X.shape[1], X.shape[2]))
-x = transformer_encoder(inputs, head_size=64, num_heads=4, ff_dim=128)
-x = Dense(64, activation="relu")(x)
-x = Dense(1, activation="sigmoid")(x)
+        # Input Layer
+        inputs = Input(shape=(X.shape[1], X.shape[2]))
+        x = transformer_encoder(inputs, head_size=64, num_heads=4, ff_dim=128)
+        x = Dense(64, activation="relu")(x)
+        x = Dense(1, activation="sigmoid")(x)
 
-# Define Model
-transformer_model = Model(inputs, x)
-transformer_model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        # Define Model
+        transformer_model = Model(inputs, x)
+        transformer_model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
-# Train Model
-transformer_model.fit(X, y, epochs=20, batch_size=32, validation_split=0.1)
+        # Train Model
+        transformer_model.fit(X, y, epochs=20, batch_size=32, validation_split=0.1)
 
 ✅ Trained Transformer model for anomaly detection!
 
@@ -4901,23 +4938,23 @@ Expose the LSTM/Transformer model as a FastAPI microservice.
 python
  
  
-import tensorflow as tf
-from fastapi import FastAPI
-import numpy as np
-import pandas as pd
+        import tensorflow as tf
+        from fastapi import FastAPI
+        import numpy as np
+        import pandas as pd
 
-app = FastAPI()
-lstm_model = tf.keras.models.load_model("lstm_fraud_model.h5")
-transformer_model = tf.keras.models.load_model("transformer_fraud_model.h5")
+        app = FastAPI()
+        lstm_model = tf.keras.models.load_model("lstm_fraud_model.h5")
+        transformer_model = tf.keras.models.load_model("transformer_fraud_model.h5")
 
-@app.post("/predict_anomaly")
-def predict_anomaly(data: dict):
-    df = pd.DataFrame([data])
-    lstm_prediction = lstm_model.predict(df)[0][0]
-    transformer_prediction = transformer_model.predict(df)[0][0]
+        @app.post("/predict_anomaly")
+        def predict_anomaly(data: dict):
+            df = pd.DataFrame([data])
+            lstm_prediction = lstm_model.predict(df)[0][0]
+            transformer_prediction = transformer_model.predict(df)[0][0]
 
-    final_score = (lstm_prediction + transformer_prediction) / 2
-    return {"is_anomaly": bool(final_score > 0.5)}
+            final_score = (lstm_prediction + transformer_prediction) / 2
+            return {"is_anomaly": bool(final_score > 0.5)}
     
 ✅ AI microservice is ready to detect fraud in real-time!
 
@@ -4929,22 +4966,22 @@ Spring Boot API Call
 java
  
  
-@FeignClient(name = "fraud-ai", url = "http://localhost:8000")
-public interface FraudDetectionClient {
-    @PostMapping("/predict_anomaly")
-    Map<String, Boolean> detectAnomaly(@RequestBody TransactionRequest request);
-}
+        @FeignClient(name = "fraud-ai", url = "http://localhost:8000")
+        public interface FraudDetectionClient {
+            @PostMapping("/predict_anomaly")
+            Map<String, Boolean> detectAnomaly(@RequestBody TransactionRequest request);
+        }
 
-@Service
-public class FraudService {
-    @Autowired
-    private FraudDetectionClient fraudClient;
-
-    public boolean isFraudulent(TransactionRequest request) {
-        Map<String, Boolean> response = fraudClient.detectAnomaly(request);
-        return response.get("is_anomaly");
-    }
-}
+        @Service
+        public class FraudService {
+            @Autowired
+            private FraudDetectionClient fraudClient;
+        
+            public boolean isFraudulent(TransactionRequest request) {
+                Map<String, Boolean> response = fraudClient.detectAnomaly(request);
+                return response.get("is_anomaly");
+            }
+        }
 
 ✅ Spring Boot now prevents fraudulent transactions in real-time!
 
@@ -4952,14 +4989,14 @@ public class FraudService {
 
 We'll extract real-time behavioral patterns from user transactions.
 
-Feature Name	Description
-avg_transaction_amount	Rolling average of last 10 transactions
-refund_ratio_last_7d	Percentage of transactions refunded in the last 7 days
-high_value_refund_flag	If refund amount is 3x the average order value
-time_between_transactions	Time gap between consecutive transactions
-device_change_count	Number of device changes in last 30 days
-location_change_count	Number of different locations used in last 30 days
-payment_method_risk	Weight-based score (PayPal, Crypto, Cr  Card)
+        Feature Name	                Description
+        avg_transaction_amount	        Rolling average of last 10 transactions
+        refund_ratio_last_7d	        Percentage of transactions refunded in the last 7 days
+        high_value_refund_flag	I        f refund amount is 3x the average order value
+        time_between_transactions	Time gap between consecutive transactions
+        device_change_count	        Number of device changes in last 30 days
+        location_change_count	        Number of different locations used in last 30 days
+        payment_method_risk	        Weight-based score (PayPal, Crypto, Cr  Card)
 
 ✅ These features will improve fraud detection & refund predictions!
 
@@ -4971,8 +5008,9 @@ bash
  
  
 # Create Kafka topics
-kafka-topics.sh --create --topic transactions --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
-kafka-topics.sh --create --topic engineered-features --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+
+        kafka-topics.sh --create --topic transactions --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
+        kafka-topics.sh --create --topic engineered-features --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1
 
 ✅ Kafka topics set up for streaming transactions & engineered features!
 
@@ -4984,22 +5022,22 @@ Spring Boot - Kafka Producer
 java
  
  
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+        import org.springframework.kafka.core.KafkaTemplate;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class TransactionEventPublisher {
+        @Service
+        public class TransactionEventPublisher {
     
-    private final KafkaTemplate<String, String> kafkaTemplate;
+            private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public TransactionEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
+            public TransactionEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
+                this.kafkaTemplate = kafkaTemplate;
+            }
 
-    public void sendTransactionEvent(String transactionJson) {
-        kafkaTemplate.send("transactions", transactionJson);
-    }
-}
+            public void sendTransactionEvent(String transactionJson) {
+                kafkaTemplate.send("transactions", transactionJson);
+            }
+        }
 
 ✅ Transaction events are now streamed in real time!
 
@@ -5011,43 +5049,43 @@ Kafka Streams Processor (Spring Boot)
 java
  
  
-import org.apache.kafka.streams.KafkaStreams;
-import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.*;
-import org.springframework.stereotype.Service;
-import java.util.Properties;
+        import org.apache.kafka.streams.KafkaStreams;
+        import org.apache.kafka.streams.StreamsBuilder;
+        import org.apache.kafka.streams.StreamsConfig;
+        import org.apache.kafka.streams.kstream.*;
+        import org.springframework.stereotype.Service;
+        import java.util.Properties;
 
-@Service
-public class TransactionFeatureProcessor {
+        @Service
+        public class TransactionFeatureProcessor {
 
-    public TransactionFeatureProcessor() {
-        Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "feature-engineering");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+            public TransactionFeatureProcessor() {
+                Properties props = new Properties();
+                props.put(StreamsConfig.APPLICATION_ID_CONFIG, "feature-engineering");
+                props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
 
-        StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, String> transactions = builder.stream("transactions");
+                StreamsBuilder builder = new StreamsBuilder();
+                KStream<String, String> transactions = builder.stream("transactions");
 
-        // Extract features
-        KTable<String, Double> avgTransactionAmount = transactions
-            .groupByKey()
-            .aggregate(
-                () -> 0.0,
-                (key, transaction, aggregate) -> (aggregate + extractAmount(transaction)) / 2
-            );
+                // Extract features
+                KTable<String, Double> avgTransactionAmount = transactions
+                    .groupByKey()
+                    .aggregate(
+                        () -> 0.0,
+                        (key, transaction, aggregate) -> (aggregate + extractAmount(transaction)) / 2
+                    );
 
-        avgTransactionAmount.toStream().to("engineered-features");
+                avgTransactionAmount.toStream().to("engineered-features");
 
-        KafkaStreams streams = new KafkaStreams(builder.build(), props);
-        streams.start();
-    }
+                KafkaStreams streams = new KafkaStreams(builder.build(), props);
+                streams.start();
+            }
 
-    private double extractAmount(String transaction) {
-        // Extract transaction amount from JSON
-        return Double.parseDouble(transaction.split(",")[1]);
-    }
-}
+            private double extractAmount(String transaction) {
+                // Extract transaction amount from JSON
+                return Double.parseDouble(transaction.split(",")[1]);
+            }
+        }
 
 ✅ Real-time features are computed and sent to AI models!
 
@@ -5059,18 +5097,18 @@ Consume Engineered Features in Spring Boot
 java
  
  
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
+        import org.apache.kafka.clients.consumer.ConsumerRecord;
+        import org.springframework.kafka.annotation.KafkaListener;
+        import org.springframework.stereotype.Service;
 
-@Service
-public class FeatureConsumerService {
+        @Service
+        public class FeatureConsumerService {
 
-    @KafkaListener(topics = "engineered-features", groupId = "fraud-detection")
-    public void consume(ConsumerRecord<String, String> record) {
-        System.out.println("Received Engineered Feature: " + record.value());
-    }
-}
+            @KafkaListener(topics = "engineered-features", groupId = "fraud-detection")
+            public void consume(ConsumerRecord<String, String> record) {
+                System.out.println("Received Engineered Feature: " + record.value());
+            }
+        }
 
 ✅ AI models can now use advanced real-time features!
 
@@ -5082,15 +5120,17 @@ Deploy Kafka in Kubernetes
 bash
  
  
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm install kafka bitnami/kafka --set replicaCount=3
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm install kafka bitnami/kafka --set replicaCount=3
+        
 Deploy Spring Boot Microservices
+
 bash
  
  
-kubectl apply -f fraud-detection-service.yaml
-kubectl apply -f transaction-service.yaml
-kubectl apply -f feature-engineering.yaml
+        kubectl apply -f fraud-detection-service.yaml
+        kubectl apply -f transaction-service.yaml
+        kubectl apply -f feature-engineering.yaml
 
 ✅ Feature engineering is fully automated in Kubernetes!
 
@@ -5113,32 +5153,32 @@ Install AutoKeras
 bash
  
  
-pip install autokeras
-Train a Fraud Detection Model Automatically
+        pip install autokeras
+        Train a Fraud Detection Model Automatically
 python
  
  
-import autokeras as ak
-import tensorflow as tf
-import pandas as pd
-from sklearn.model_selection import train_test_split
+        import autokeras as ak
+        import tensorflow as tf
+        import pandas as pd
+        from sklearn.model_selection import train_test_split
 
-# Load and preprocess data
-df = pd.read_csv("transaction_logs.csv")
-X = df.drop(columns=["fraud_flag"])
-y = df["fraud_flag"]
+        # Load and preprocess data
+        df = pd.read_csv("transaction_logs.csv")
+        X = df.drop(columns=["fraud_flag"])
+        y = df["fraud_flag"]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Define AutoML model
-auto_model = ak.StructuredDataClassifier(max_trials=10, overwrite=True)
+        # Define AutoML model
+        auto_model = ak.StructuredDataClassifier(max_trials=10, overwrite=True)
 
-# Train model
-auto_model.fit(X_train, y_train, epochs=20)
+        # Train model
+        auto_model.fit(X_train, y_train, epochs=20)
 
-# Evaluate performance
-accuracy = auto_model.evaluate(X_test, y_test)
-print("AutoML Model Accuracy:", accuracy)
+        # Evaluate performance
+        accuracy = auto_model.evaluate(X_test, y_test)
+        print("AutoML Model Accuracy:", accuracy)
 
 ✅ AutoML finds the best fraud detection model automatically!
 
@@ -5150,42 +5190,42 @@ Install Optuna
 bash
  
  
-pip install optuna
-Optimize LSTM Model Hyperparameters
+        pip install optuna
+        Optimize LSTM Model Hyperparameters
 python
  
  
-import optuna
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
+        import optuna
+        import tensorflow as tf
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import LSTM, Dense
 
-def objective(trial):
-    units = trial.suggest_int("units", 32, 128, step=16)
-    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True)
+        def objective(trial):
+            units = trial.suggest_int("units", 32, 128, step=16)
+            learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True)
 
-    # Define model
-    model = Sequential([
-        LSTM(units, return_sequences=True, input_shape=(10, 3)),
-        LSTM(units // 2),
-        Dense(1, activation="sigmoid")
-    ])
+            # Define model
+            model = Sequential([
+                LSTM(units, return_sequences=True, input_shape=(10, 3)),
+                LSTM(units // 2),
+                Dense(1, activation="sigmoid")
+            ])
     
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate), loss="binary_crossentropy", metrics=["accuracy"])
+            model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate), loss="binary_crossentropy", metrics=["accuracy"])
 
-    # Train model
-    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.1, verbose=0)
+            # Train model
+            model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.1, verbose=0)
 
-    # Evaluate
-    _, accuracy = model.evaluate(X_test, y_test, verbose=0)
-    return accuracy
+            # Evaluate
+            _, accuracy = model.evaluate(X_test, y_test, verbose=0)
+            return accuracy
 
-# Run hyperparameter optimization
-study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=20)
+        # Run hyperparameter optimization
+        study = optuna.create_study(direction="maximize")
+        study.optimize(objective, n_trials=20)
 
-# Best parameters
-print("Best Hyperparameters:", study.best_params)
+        # Best parameters
+        print("Best Hyperparameters:", study.best_params)
 
 ✅ Optuna automatically finds the best LSTM hyperparameters!
 
@@ -5196,18 +5236,18 @@ Expose the best model via a FastAPI-based inference service.
 python
  
  
-from fastapi import FastAPI
-import tensorflow as tf
-import numpy as np
+        from fastapi import FastAPI
+        import tensorflow as tf
+        import numpy as np
 
-app = FastAPI()
-model = tf.keras.models.load_model("optimized_fraud_model.h5")
+        app = FastAPI()
+        model = tf.keras.models.load_model("optimized_fraud_model.h5")
 
-@app.post("/predict")
-def predict(transaction: dict):
-    X_input = np.array([list(transaction.values())]).reshape(1, -1)
-    prediction = model.predict(X_input)[0][0]
-    return {"fraud_risk": prediction}
+        @app.post("/predict")
+        def predict(transaction: dict):
+            X_input = np.array([list(transaction.values())]).reshape(1, -1)
+            prediction = model.predict(X_input)[0][0]
+            return {"fraud_risk": prediction}
     
 ✅ Optimized model is now available as an API!
 
@@ -5219,28 +5259,29 @@ Deploy Kubeflow in Kubernetes
 bash
  
  
-kubectl apply -f https://raw.githubusercontent.com/kubeflow/manifests/master/kubeflow/kfctl_k8s_istio.yaml
-Create an AutoML Pipeline
+        kubectl apply -f https://raw.githubusercontent.com/kubeflow/manifests/master/kubeflow/kfctl_k8s_istio.yaml
+        Create an AutoML Pipeline
+        
 yaml
  
  
-apiVersion: kubeflow.org/v1
-kind: Experiment
-metadata:
-  name: automl-fraud-detection
-spec:
-  objective:
-    type: maximize
-    goal: 0.95
-  algorithm: bayesian
-  trialTemplate:
-    primaryContainerName: training-container
-    trialParameters:
-      - name: learning_rate
-        type: double
-        feasibleSpace:
-          min: "0.0001"
-          max: "0.01"
+        apiVersion: kubeflow.org/v1
+        kind: Experiment
+        metadata:
+          name: automl-fraud-detection
+        spec:
+          objective:
+            type: maximize
+            goal: 0.95
+          algorithm: bayesian
+          trialTemplate:
+            primaryContainerName: training-container
+            trialParameters:
+              - name: learning_rate
+                type: double
+                feasibleSpace:
+                  min: "0.0001"
+                  max: "0.01"
           
 ✅ Kubeflow automatically tunes and retrains models!
 
@@ -5260,12 +5301,12 @@ Start Elasticsearch Locally
 bash
  
  
-docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.17.3
-Start Logstash for Log Ingestion
+        docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" docker.elastic.co/elasticsearch/elasticsearch:7.17.3
+        Start Logstash for Log Ingestion
 bash
  
  
-docker run -d --name logstash -p 5044:5044 -p 9600:9600 -v $(pwd)/logstash.conf:/usr/share/logstash/pipeline/logstash.conf docker.elastic.co/logstash/logstash:7.17.3
+        docker run -d --name logstash -p 5044:5044 -p 9600:9600 -v $(pwd)/logstash.conf:/usr/share/logstash/pipeline/logstash.conf docker.elastic.co/logstash/logstash:7.17.3
 
 ✅ Elasticsearch & Logstash are ready to ingest tracking logs!
 
@@ -5276,15 +5317,15 @@ A tracking log for an order might contain:
 json
  
  
-{
-  "order_id": "12345",
-  "status": "Shipped",
-  "timestamp": "2025-02-14T15:30:00Z",
-  "location": "New York, NY",
-  "carrier": "DHL",
-  "estimated_delivery": "2025-02-18T10:00:00Z",
-  "customer_id": "98765"
-}
+        {
+          "order_id": "12345",
+          "status": "Shipped",
+          "timestamp": "2025-02-14T15:30:00Z",
+          "location": "New York, NY",
+          "carrier": "DHL",
+          "estimated_delivery": "2025-02-18T10:00:00Z",
+          "customer_id": "98765"
+        }
 
 4️⃣ Log Tracking Events from Spring Boot
 
@@ -5292,68 +5333,71 @@ Spring Boot Configuration for Elasticsearch
 yaml
  
  
-spring.elasticsearch.uris: http://localhost:9200
-spring.data.elasticsearch.repositories.enabled: true
+        spring.elasticsearch.uris: http://localhost:9200
+        spring.data.elasticsearch.repositories.enabled: true
+        
 Create TrackingLog Entity
+
 java
  
  
-import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import java.time.Instant;
+        import org.springframework.data.annotation.Id;
+        import org.springframework.data.elasticsearch.annotations.Document;
+        import java.time.Instant;
 
-@Document(indexName = "tracking_logs")
-public class TrackingLog {
+        @Document(indexName = "tracking_logs")
+        public class TrackingLog {
 
-    @Id
-    private String id;
-    private String orderId;
-    private String status;
-    private Instant timestamp;
-    private String location;
-    private String carrier;
-    private Instant estimatedDelivery;
-    private String customerId;
-}
+            @Id
+            private String id;
+            private String orderId;
+            private String status;
+            private Instant timestamp;
+            private String location;
+            private String carrier;
+            private Instant estimatedDelivery;
+            private String customerId;
+        }
+        
 Spring Data Elasticsearch Repository
+
 java
  
  
-import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
+        import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
-public interface TrackingLogRepository extends ElasticsearchRepository<TrackingLog, String> {
-    List<TrackingLog> findByOrderId(String orderId);
-}
+        public interface TrackingLogRepository extends ElasticsearchRepository<TrackingLog, String> {
+            List<TrackingLog> findByOrderId(String orderId);
+        }
 
 ✅ Tracking logs are now stored in Elasticsearch!
 
 5️⃣ Send Tracking Logs to Elasticsearch via Logstash
 
 Configure Logstash Pipeline (logstash.conf)
-plaintext
- 
- 
-input {
-  kafka {
-    bootstrap_servers => "localhost:9092"
-    topics => ["order_tracking"]
-    codec => "json"
-  }
-}
 
-filter {
-  mutate {
-    rename => { "orderId" => "order_id" }
-    convert => { "timestamp" => "date" }
-  }
-}
+ 
+        input {
+          kafka {
+            bootstrap_servers => "localhost:9092"
+            topics => ["order_tracking"]
+            codec => "json"
+          }
+        }
 
-output {
-  elasticsearch {
-    hosts => ["http://localhost:9200"]
-    index => "tracking_logs"
-  }
-}
+        filter {
+          mutate {
+            rename => { "orderId" => "order_id" }
+            convert => { "timestamp" => "date" }
+          }
+        }
+
+        output {
+          elasticsearch {
+            hosts => ["http://localhost:9200"]
+            index => "tracking_logs"
+          }
+        }
 
 ✅ Tracking logs from Kafka will be indexed in Elasticsearch!
 
@@ -5363,13 +5407,14 @@ Search for an Order’s Tracking Logs
 bash
  
  
-curl -X GET "http://localhost:9200/tracking_logs/_search?q=order_id:12345&pretty"
+        curl -X GET "http://localhost:9200/tracking_logs/_search?q=order_id:12345&pretty"
 
 ✅ Retrieve order tracking history instantly!
 
 7️⃣ Visualize Tracking Data in Kibana
 
 Open Kibana at http://localhost:5601.
+
 Create an index pattern for tracking_logs.
 Build dashboards to track order delays, carrier performance, and fraud trends.
 
@@ -5388,193 +5433,206 @@ We'll deploy the application using:
 1️⃣ Deploy Spring Boot Backend
 
 Step 1: Create Dockerfile for Each Microservice
-Inside each microservice folder (user-service, product-service, etc.), create a Dockerfile:
-# Use OpenJDK 17
-FROM openjdk:17-jdk-slim
-WORKDIR /app
 
-#   JAR file
-  target/*.jar app.jar
+Inside each microservice folder (user-service, product-service, etc.), 
+create a Dockerfile:
 
-# Expose service port
-EXPOSE 8080
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+        # Use OpenJDK 17
+        FROM openjdk:17-jdk-slim
+        WORKDIR /app
+
+        #   JAR file
+          target/*.jar app.jar
+
+        # Expose service port
+        EXPOSE 8080
+
+        # Run the application
+        ENTRYPOINT ["java", "-jar", "app.jar"]
 
 Step 2: Create Docker Compose for Backend
+
 Create a docker-compose.yml file to manage multiple microservices:
 
 yaml
  
  
-version: "3.8"
+        version: "3.8"
 
-services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysql_db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: ecommerce_db
-    ports:
-      - "3306:3306"
+        services:
+          mysql:
+            image: mysql:8.0
+            container_name: mysql_db
+            restart: always
+            environment:
+              MYSQL_ROOT_PASSWORD: root
+              MYSQL_DATABASE: ecommerce_db
+            ports:
+              - "3306:3306"
 
-  redis:
-    image: redis:latest
-    container_name: redis_cache
-    ports:
-      - "6379:6379"
+          redis:
+            image: redis:latest
+            container_name: redis_cache
+            ports:
+              - "6379:6379"
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-    ports:
-      - "9200:9200"
+          elasticsearch:
+            image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+            container_name: elasticsearch
+            environment:
+              - discovery.type=single-node
+            ports:
+              - "9200:9200"
 
-  nacos:
-    image: nacos/nacos-server
-    container_name: nacos
-    environment:
-      - MODE=standalone
-    ports:
-      - "8848:8848"
+          nacos:
+            image: nacos/nacos-server
+            container_name: nacos
+            environment:
+              - MODE=standalone
+            ports:
+              - "8848:8848"
 
-  seata:
-    image: seataio/seata-server
-    container_name: seata
-    ports:
-      - "8091:8091"
-    environment:
-      - SEATA_IP=seata
-      - STORE_MODE=db
+          seata:
+            image: seataio/seata-server
+            container_name: seata
+            ports:
+              - "8091:8091"
+            environment:
+              - SEATA_IP=seata
+              - STORE_MODE=db
 
-  user-service:
-    build: ./user-service
-    container_name: user-service
-    depends_on:
-      - mysql
-      - redis
-      - nacos
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce_db
-    ports:
-      - "8081:8080"
+          user-service:
+            build: ./user-service
+            container_name: user-service
+            depends_on:
+              - mysql
+              - redis
+              - nacos
+            environment:
+              - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ecommerce_db
+            ports:
+              - "8081:8080"
 
-  product-service:
-    build: ./product-service
-    container_name: product-service
-    depends_on:
-      - elasticsearch
-      - nacos
-    ports:
-      - "8082:8080"
+          product-service:
+            build: ./product-service
+            container_name: product-service
+            depends_on:
+              - elasticsearch
+              - nacos
+            ports:
+              - "8082:8080"
       
 🔹 Run the backend:
 
 bash
  
  
-docker-compose up -d
+        docker-compose up -d
 
 ✅ This deploys MySQL, Redis, Elasticsearch, Nacos, Seata, and microservices.
 
 2️⃣ Deploy Vue.js Frontend
 
 Step 1: Create Vue.js Dockerfile
+
 Inside the Vue.js project, create a Dockerfile:
 
 dockerfile
  
  
-# Use Node.js to build the app
-FROM node:18 as build
-WORKDIR /app
-  package.json ./
-RUN npm install
-  . .
-RUN npm run build
+        # Use Node.js to build the app
+        FROM node:18 as build
+        WORKDIR /app
+          package.json ./
+        RUN npm install
+          . .
+        RUN npm run build
 
-# Use Nginx to serve Vue app
-FROM nginx:latest
-  --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+        # Use Nginx to serve Vue app
+        FROM nginx:latest
+          --from=build /app/dist /usr/share/nginx/html
+        EXPOSE 80
+        CMD ["nginx", "-g", "daemon off;"]
+        
 Step 2: Create Nginx Config
+
 Create nginx.conf in the project root:
 
 nginx
  
  
-server {
-    listen 80;
-    location / {
-        root /usr/share/nginx/html;
-        index index.html;
-        try_files $uri /index.html;
-    }
+        server {
+            listen 80;
+            location / {
+                root /usr/share/nginx/html;
+                index index.html;
+                try_files $uri /index.html;
+            }
 
-    location /api/ {
-        proxy_pass  ://backend-service:8081/;
-    }
-}
+            location /api/ {
+                proxy_pass  ://backend-service:8081/;
+            }
+        }
+        
 Step 3: Build & Run Vue.js with Docker
+
 bash
  
  
-docker build -t vue-frontend .
-docker run -d -p 8080:80 --name vue-app vue-frontend
+        docker build -t vue-frontend .
+        docker run -d -p 8080:80 --name vue-app vue-frontend
 
 ✅ Vue.js frontend is now running at  ://localhost:8080.
 
 3️⃣ Deploy to Kubernetes (Optional)
 
 Step 1: Create K8s Deployment for Backend
+
 Create a user-service.yaml file:
 
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: user-service
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: user-service
-  template:
-    metadata:
-      labels:
-        app: user-service
-    spec:
-      containers:
-        - name: user-service
-          image: user-service:latest
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: user-service
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: user-service
+          template:
+            metadata:
+              labels:
+                app: user-service
+            spec:
+              containers:
+                - name: user-service
+                  image: user-service:latest
+                  ports:
+                    - containerPort: 8080
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: user-service
+        spec:
+          type: ClusterIP
+          selector:
+            app: user-service
           ports:
-            - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: user-service
-spec:
-  type: ClusterIP
-  selector:
-    app: user-service
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+              
 Step 2: Apply the Configuration
+
 bash
  
  
-kubectl apply -f user-service.yaml
+        kubectl apply -f user-service.yaml
 
 ✅ Deploys user-service to Kubernetes.
 
@@ -5596,226 +5654,236 @@ kubectl apply -f user-service.yaml
 Each microservice (Order, Payment, Notification, etc.) needs a Dockerfile.
 
 Example Dockerfile for Order Service
+
 dockerfile
  
  
-FROM openjdk:17
-WORKDIR /app
-  target/order-service.jar order-service.jar
-ENTRYPOINT ["java", "-jar", "order-service.jar"]
-EXPOSE 8080
+        FROM openjdk:17
+        WORKDIR /app
+          target/order-service.jar order-service.jar
+        ENTRYPOINT ["java", "-jar", "order-service.jar"]
+        EXPOSE 8080
 
 ✅ Build & Push to Docker Hub
 
 sh
  
  
-docker build -t myrepo/order-service:latest .
-docker push myrepo/order-service:latest
-Repeat this for all microservices.
+        docker build -t myrepo/order-service:latest .
+        docker push myrepo/order-service:latest
+        Repeat this for all microservices.
 
 2️⃣ Kubernetes Deployment & Services
 
 Order Service Deployment (order-service.yaml)
+
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: order-service
-  template:
-    metadata:
-      labels:
-        app: order-service
-    spec:
-      containers:
-      - name: order-service
-        image: myrepo/order-service:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: SPRING_DATASOURCE_URL
-          value: "jdbc:mysql://mysql:3306/orders"
-        - name: SPRING_DATASOURCE_USERNAME
-          value: "root"
-        - name: SPRING_DATASOURCE_PASSWORD
-          value: "password"
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: order-service
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: order-service
+          template:
+            metadata:
+              labels:
+                app: order-service
+            spec:
+              containers:
+              - name: order-service
+                image: myrepo/order-service:latest
+                ports:
+                - containerPort: 8080
+                env:
+                - name: SPRING_DATASOURCE_URL
+                  value: "jdbc:mysql://mysql:3306/orders"
+                - name: SPRING_DATASOURCE_USERNAME
+                  value: "root"
+                - name: SPRING_DATASOURCE_PASSWORD
+                  value: "password"
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: order-service
-spec:
-  selector:
-    app: order-service
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
-  type: ClusterIP
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: order-service
+        spec:
+          selector:
+            app: order-service
+          ports:
+            - protocol: TCP
+              port: 8080
+              targetPort: 8080
+          type: ClusterIP
   
 ✅ Apply Deployment
 
 sh
  
  
-kubectl apply -f order-service.yaml
-Repeat for other services: Payment, Notification, etc.
+        kubectl apply -f order-service.yaml
+        Repeat for other services: Payment, Notification, etc.
 
 3️⃣ Set Up Ingress Controller for Load Balancing
 
 Install Ingress Controller (NGINX)
+
 sh
  
  
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+        
 Ingress Configuration (ingress.yaml)
+
 yaml
  
  
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ecommerce-ingress
-spec:
-  rules:
-  - host: ecommerce.local
-    http:
-      paths:
-      - path: /orders
-        pathType: Prefix
-        backend:
-          service:
-            name: order-service
-            port:
-              number: 8080
-      - path: /payments
-        pathType: Prefix
-        backend:
-          service:
-            name: payment-service
-            port:
-              number: 8081
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: ecommerce-ingress
+        spec:
+          rules:
+          - host: ecommerce.local
+            http:
+              paths:
+              - path: /orders
+                pathType: Prefix
+                backend:
+                  service:
+                    name: order-service
+                    port:
+                      number: 8080
+              - path: /payments
+                pathType: Prefix
+                backend:
+                  service:
+                    name: payment-service
+                    port:
+                      number: 8081
         
 ✅ Apply Ingress
 
 sh
  
  
-kubectl apply -f ingress.yaml
+        kubectl apply -f ingress.yaml
+        
 Now, requests are routed to different services based on path.
 
 4️⃣ Persistent Storage & Config Maps
 
 Database Deployment (mysql.yaml)
+
 yaml
  
  
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: mysql-pvc
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
 
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mysql
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mysql
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-      - name: mysql
-        image: mysql:8
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: "password"
-        - name: MYSQL_DATABASE
-          value: "orders"
-        ports:
-        - containerPort: 3306
-        volumeMounts:
-        - name: mysql-storage
-          mountPath: /var/lib/mysql
-      volumes:
-      - name: mysql-storage
-        persistentVolumeClaim:
-          claimName: mysql-pvc
+        ---
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: mysql
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: mysql
+          template:
+            metadata:
+              labels:
+                app: mysql
+            spec:
+              containers:
+              - name: mysql
+                image: mysql:8
+                env:
+                - name: MYSQL_ROOT_PASSWORD
+                  value: "password"
+                - name: MYSQL_DATABASE
+                  value: "orders"
+                ports:
+                - containerPort: 3306
+                volumeMounts:
+                - name: mysql-storage
+                  mountPath: /var/lib/mysql
+              volumes:
+              - name: mysql-storage
+                persistentVolumeClaim:
+                  claimName: mysql-pvc
           
 ✅ Apply MySQL Deployment
 
 sh
  
  
-kubectl apply -f mysql.yaml
+        kubectl apply -f mysql.yaml
+        
 Now, MySQL runs with persistent storage.
 
 5️⃣ Deploy Vue.js Frontend
 
 Vue Deployment (frontend.yaml)
+
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: frontend
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: frontend
-  template:
-    metadata:
-      labels:
-        app: frontend
-    spec:
-      containers:
-      - name: frontend
-        image: myrepo/vue-frontend:latest
-        ports:
-        - containerPort: 80
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: frontend
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: frontend
+          template:
+            metadata:
+              labels:
+                app: frontend
+            spec:
+              containers:
+              - name: frontend
+                image: myrepo/vue-frontend:latest
+                ports:
+                - containerPort: 80
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend
-spec:
-  type: LoadBalancer
-  selector:
-    app: frontend
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: frontend
+        spec:
+          type: LoadBalancer
+          selector:
+            app: frontend
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 80
       
 ✅ Apply Vue.js Deployment
 
 sh
  
  
-kubectl apply -f frontend.yaml
+        kubectl apply -f frontend.yaml
+        
 Your frontend is now accessible via Load Balancer! 🎉
 
 🚀 Final Steps
@@ -5846,47 +5914,48 @@ Integrating CI/CD ensures automated builds, testing, and deployments for your e-
 2️⃣ GitHub Actions for CI/CD
 
 1️⃣ Create .github/workflows/deploy.yml
+
 yaml
  
  
-name: CI/CD Pipeline
+        name: CI/CD Pipeline
 
-on:
-  push:
-    branches:
-      - main
+        on:
+          push:
+            branches:
+              - main
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+        jobs:
+          build:
+            runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+            steps:
+              - name: Checkout Code
+                uses: actions/checkout@v3
 
-      - name: Set Up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+              - name: Set Up JDK
+                uses: actions/setup-java@v3
+                with:
+                  java-version: '17'
+                  distribution: 'temurin'
 
-      - name: Build & Test with Maven
-        run: mvn clean package
+              - name: Build & Test with Maven
+                run: mvn clean package
 
-      - name: Build Docker Image
-        run: |
-          docker build -t myapp:latest .
-          docker tag myapp:latest myrepo/myapp:latest
+              - name: Build Docker Image
+                run: |
+                  docker build -t myapp:latest .
+                  docker tag myapp:latest myrepo/myapp:latest
 
-      - name: Push to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-          docker push myrepo/myapp:latest
+              - name: Push to Docker Hub
+                run: |
+                  echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+                  docker push myrepo/myapp:latest
 
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl apply -f k8s/deployment.yml
-          kubectl rollout status deployment myapp
+              - name: Deploy to Kubernetes
+                run: |
+                  kubectl apply -f k8s/deployment.yml
+                  kubectl rollout status deployment myapp
           
 ✅ Automatically builds, tests, and deploys microservices!
 
@@ -5909,80 +5978,81 @@ Install these plugins in Jenkins:
 groovy
  
  
-pipeline {
-    agent any
+        pipeline {
+            agent any
 
-    environment {
-        DOCKER_IMAGE = "myrepo/myapp:latest"
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/myorg/myapp.git'
+            environment {
+                DOCKER_IMAGE = "myrepo/myapp:latest"
             }
-        }
 
-        stage('Build & Test') {
-            steps {
-                sh 'mvn clean package'
-            }
-        }
+            stages {
+                stage('Checkout') {
+                    steps {
+                        git branch: 'main', url: 'https://github.com/myorg/myapp.git'
+                    }
+                }
 
-        stage('Build Docker Image') {
-            steps {
-                sh "docker build -t ${DOCKER_IMAGE} ."
-                sh "docker tag ${DOCKER_IMAGE} ${DOCKER_IMAGE}"
-            }
-        }
+                stage('Build & Test') {
+                    steps {
+                        sh 'mvn clean package'
+                    }
+                }
 
-        stage('Push to Docker Hub') {
-            steps {
-                withDockerRegistry([credentialsId: 'docker-hub', url: '']) {
-                    sh "docker push ${DOCKER_IMAGE}"
+                stage('Build Docker Image') {
+                    steps {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                        sh "docker tag ${DOCKER_IMAGE} ${DOCKER_IMAGE}"
+                    }
+                }
+
+                stage('Push to Docker Hub') {
+                    steps {
+                        withDockerRegistry([credentialsId: 'docker-hub', url: '']) {
+                            sh "docker push ${DOCKER_IMAGE}"
+                        }
+                    }
+                }
+
+                stage('Deploy to Kubernetes') {
+                    steps {
+                        sh "kubectl apply -f k8s/deployment.yml"
+                        sh "kubectl rollout status deployment myapp"
+                    }
                 }
             }
         }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                sh "kubectl apply -f k8s/deployment.yml"
-                sh "kubectl rollout status deployment myapp"
-            }
-        }
-    }
-}
 
 ✅ Jenkins automatically builds, tests, and deploys your microservices!
 
 4️⃣ Automate Kubernetes Deployment
 
 Kubernetes Deployment YAML (k8s/deployment.yml)
+
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: myapp
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: myapp
-  template:
-    metadata:
-      labels:
-        app: myapp
-    spec:
-      containers:
-        - name: myapp
-          image: myrepo/myapp:latest
-          ports:
-            - containerPort: 8080
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "prod"
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: myapp
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: myapp
+          template:
+            metadata:
+              labels:
+                app: myapp
+            spec:
+              containers:
+                - name: myapp
+                  image: myrepo/myapp:latest
+                  ports:
+                    - containerPort: 8080
+                  env:
+                    - name: SPRING_PROFILES_ACTIVE
+                      value: "prod"
               
 ✅ CI/CD ensures seamless microservice deployment to Kubernetes!
 
@@ -6001,87 +6071,89 @@ Integrating security scans in CI/CD helps detect vulnerabilities, misconfigurati
 2️⃣ Security Scans in GitHub Actions
 
 Update .github/workflows/deploy.yml
+
 yaml
  
  
-name: CI/CD Pipeline with Security Scans
+        name: CI/CD Pipeline with Security Scans
 
-on:
-  push:
-    branches:
-      - main
+        on:
+          push:
+            branches:
+              - main
 
-jobs:
-  security_scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+        jobs:
+          security_scan:
+            runs-on: ubuntu-latest
+            steps:
+              - name: Checkout Code
+                uses: actions/checkout@v3
 
-      - name: Run Snyk Security Scan
-        uses: snyk/actions/maven@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+              - name: Run Snyk Security Scan
+                uses: snyk/actions/maven@master
+                env:
+                  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Trivy for Docker Image Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'myrepo/myapp:latest'
-          format: 'table'
+              - name: Run Trivy for Docker Image Scan
+                uses: aquasecurity/trivy-action@master
+                with:
+                  image-ref: 'myrepo/myapp:latest'
+                  format: 'table'
 
-  build_deploy:
-    runs-on: ubuntu-latest
-    needs: security_scan
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+          build_deploy:
+            runs-on: ubuntu-latest
+            needs: security_scan
+            steps:
+              - name: Checkout Code
+                uses: actions/checkout@v3
 
-      - name: Build & Deploy
-        run: |
-          mvn clean package
-          docker build -t myrepo/myapp:latest .
-          docker push myrepo/myapp:latest
-          kubectl apply -f k8s/deployment.yml
+              - name: Build & Deploy
+                run: |
+                  mvn clean package
+                  docker build -t myrepo/myapp:latest .
+                  docker push myrepo/myapp:latest
+                  kubectl apply -f k8s/deployment.yml
           
 ✅ Stops deployment if security vulnerabilities are found!
 
 3️⃣ Security Scans in Jenkins
 
 Update Jenkinsfile
+
 groovy
  
  
-pipeline {
-    agent any
+        pipeline {
+            agent any
 
-    environment {
-        DOCKER_IMAGE = "myrepo/myapp:latest"
-    }
+            environment {
+                DOCKER_IMAGE = "myrepo/myapp:latest"
+            }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/myorg/myapp.git'
+            stages {
+                stage('Checkout') {
+                    steps {
+                        git branch: 'main', url: 'https://github.com/myorg/myapp.git'
+                    }
+                }
+
+                stage('Security Scan') {
+                    steps {
+                        sh 'snyk test --severity-threshold=high'
+                        sh 'trivy image --severity HIGH,CRITICAL ${DOCKER_IMAGE}'
+                    }
+                }
+
+                stage('Build & Deploy') {
+                    steps {
+                        sh 'mvn clean package'
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                        sh "docker push ${DOCKER_IMAGE}"
+                        sh "kubectl apply -f k8s/deployment.yml"
+                    }
+                }
             }
         }
-
-        stage('Security Scan') {
-            steps {
-                sh 'snyk test --severity-threshold=high'
-                sh 'trivy image --severity HIGH,CRITICAL ${DOCKER_IMAGE}'
-            }
-        }
-
-        stage('Build & Deploy') {
-            steps {
-                sh 'mvn clean package'
-                sh "docker build -t ${DOCKER_IMAGE} ."
-                sh "docker push ${DOCKER_IMAGE}"
-                sh "kubectl apply -f k8s/deployment.yml"
-            }
-        }
-    }
-}
 
 ✅ Fails the pipeline if high-severity vulnerabilities exist!
 
@@ -6092,24 +6164,24 @@ pipeline {
 yaml
  
  
-- name: Run SonarQube
-  run: mvn sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.login=${{ secrets.SONARQUBE_TOKEN }}
+        - name: Run SonarQube
+          run: mvn sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.login=${{ secrets.SONARQUBE_TOKEN }}
   
 ✅ Dependency Scanning (OWASP Dependency-Check)
 
 yaml
  
  
-- name: Run OWASP Dependency-Check
-  run: mvn org.owasp:dependency-check-maven:check
+        - name: Run OWASP Dependency-Check
+          run: mvn org.owasp:dependency-check-maven:check
   
 ✅ Secrets Scanning (Gitleaks)
 
 yaml
  
  
-- name: Run Gitleaks to detect secrets
-  run: gitleaks detect --source . --verbose
+        - name: Run Gitleaks to detect secrets
+          run: gitleaks detect --source . --verbose
 
   🚀 Canary Deployments with Istio
   
@@ -6132,17 +6204,17 @@ Integrating Canary Deployments with Istio enables progressive rollouts, A/B test
 bash
  
  
-curl -L https://istio.io/downloadIstio | sh -
-cd istio-*
-export PATH=$PWD/bin:$PATH
-istioctl install --set profile=demo -y
+        curl -L https://istio.io/downloadIstio | sh -
+        cd istio-*
+        export PATH=$PWD/bin:$PATH
+        istioctl install --set profile=demo -y
 
 2️⃣ Enable Istio Injection
 
 bash
  
  
-kubectl label namespace default istio-injection=enabled
+        kubectl label namespace default istio-injection=enabled
 
 3️⃣ Define Canary Deployment in Kubernetes
 
@@ -6150,60 +6222,60 @@ kubectl label namespace default istio-injection=enabled
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: myapp-v1
-  labels:
-    app: myapp
-    version: v1
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: myapp
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: myapp
-        version: v1
-    spec:
-      containers:
-        - name: myapp
-          image: myrepo/myapp:v1
-          ports:
-            - containerPort: 8080
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: myapp-v1
+          labels:
+            app: myapp
+            version: v1
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: myapp
+              version: v1
+          template:
+            metadata:
+              labels:
+                app: myapp
+                version: v1
+            spec:
+              containers:
+                - name: myapp
+                  image: myrepo/myapp:v1
+                  ports:
+                    - containerPort: 8080
             
 2️⃣ Deploy the New Version (myapp-v2)
 
 yaml
  
  
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: myapp-v2
-  labels:
-    app: myapp
-    version: v2
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: myapp
-      version: v2
-  template:
-    metadata:
-      labels:
-        app: myapp
-        version: v2
-    spec:
-      containers:
-        - name: myapp
-          image: myrepo/myapp:v2
-          ports:
-            - containerPort: 8080
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: myapp-v2
+          labels:
+            app: myapp
+            version: v2
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: myapp
+              version: v2
+          template:
+            metadata:
+              labels:
+                app: myapp
+                version: v2
+            spec:
+              containers:
+                - name: myapp
+                  image: myrepo/myapp:v2
+                  ports:
+                    - containerPort: 8080
             
 4️⃣ Define Istio Canary Routing
 
@@ -6212,23 +6284,23 @@ spec:
 yaml
  
  
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: myapp
-spec:
-  hosts:
-    - myapp.default.svc.cluster.local
-  http:
-    - route:
-        - destination:
-            host: myapp
-            subset: v1
-          weight: 90
-        - destination:
-            host: myapp
-            subset: v2
-          weight: 10
+        apiVersion: networking.istio.io/v1alpha3
+        kind: VirtualService
+        metadata:
+          name: myapp
+        spec:
+          hosts:
+            - myapp.default.svc.cluster.local
+          http:
+            - route:
+                - destination:
+                    host: myapp
+                    subset: v1
+                  weight: 90
+                - destination:
+                    host: myapp
+                    subset: v2
+                  weight: 10
           
 ✅ 90% traffic goes to v1, 10% to v2
 
@@ -6236,19 +6308,19 @@ spec:
 
 yaml
  
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: myapp
-spec:
-  host: myapp
-  subsets:
-    - name: v1
-      labels:
-        version: v1
-    - name: v2
-      labels:
-        version: v2
+        apiVersion: networking.istio.io/v1alpha3
+        kind: DestinationRule
+        metadata:
+          name: myapp
+        spec:
+          host: myapp
+          subsets:
+            - name: v1
+              labels:
+                version: v1
+            - name: v2
+              labels:
+                version: v2
         
 5️⃣ Rollout Strategy
 
