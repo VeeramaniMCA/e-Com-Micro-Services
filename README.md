@@ -3125,8 +3125,10 @@ sh
 pgsql
  
  
-        NAME               REFERENCE             TARGETS   MINPODS   MAXPODS   REPLICAS
-        order-service-hpa  Deployment/order-service   75%/70%   2        10        5
+        NAME               REFERENCE				TARGETS   		MINPODS  	MAXPODS   REPLICAS
+	
+        order-service-hpa  Deployment/order-service   	75%/70%   		2        	10        5
+	
 
 ✅ HPA is now monitoring memory usage!
 
